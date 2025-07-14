@@ -5,11 +5,11 @@
 %{
 
 #include <cstdlib>
-#include <string>
+#include <string.h>
 
 // 因为 Flex 会用到 Bison 中关于 token 的定义
 // 所以需要 include Bison 生成的头文件
-#include "SysY.tab.hpp"
+#include "SysY.tab.hh"
 
 using namespace std;
 
@@ -35,7 +35,12 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 "int"           { return INT; }
 "return"        { return RETURN; }
 
-{Identifier}    { yylval.str_val = new string(yytext); return IDENT; }
+{Identifier}    {
+    yylval.str_val = (char *)malloc(yyleng + 1);
+    strncpy(yylval.str_val, yytext, yyleng);
+    yylval.str_val[yyleng] = '\0';
+    return IDENT;
+}
 
 {Decimal}       { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }
 {Octal}         { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }

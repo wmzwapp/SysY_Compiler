@@ -28,8 +28,8 @@ CXXFLAGS += -g -O0
 endif
 
 # Compilers
-CC := clang
-CXX := clang++
+CC := gcc
+CXX := g++
 FLEX := flex
 BISON := bison
 
