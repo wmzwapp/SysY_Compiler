@@ -178,7 +178,7 @@ void StmtAST::GenRawInstr(koopa_raw_value_t &vptr) {
     retVal->used_by.buffer = (const void **)retValUsedBys;
 
     retVal->kind.tag = KOOPA_RVT_INTEGER;
-    retVal->kind.data.integer.value = 0;
+    retVal->kind.data.integer.value = num_;
 
     v->kind.data.ret.value = retVal;
 }
