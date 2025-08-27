@@ -44,4 +44,14 @@ $(BUILD_DIR)/%.lex$(CCEXT): $(SRC_DIR)/%.l
 clean:
 	-rm -rf $(BUILD_DIR)
 
+run_koopa:
+	koopac out.koopa | llc --filetype=obj -o out.o
+	clang out.o -L$(CDE_LIBRARY_PATH)/native -lsysy -o out
+	./out; echo $$?
+
+run_asm:
+	clang out.S -c -o out.o -target riscv32-unknown-linux-elf -march=rv32im -mabi=ilp32
+	ld.lld out.o -L$(CDE_LIBRARY_PATH)/riscv32 -lsysy -o out
+	qemu-riscv32-static out; echo $$?
+
 -include $(DEPS)

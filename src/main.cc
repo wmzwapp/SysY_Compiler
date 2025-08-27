@@ -1,42 +1,58 @@
 #include <cassert>
+#include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 
-#include "ast.hh"
-// #include "ir.hh"
+#include "ast/CompUnitAST.hh"
 #include "../ext/include/koopa.h"
-#include "rawProgram2RISCV.hh"
+#include "ir/ProgramIR.hh"
+#include "asm/cfg.hh"
 
 extern FILE *yyin;
 extern int yyparse(BaseAST *&ast);
+extern "C" int yydebug;
 
 int main (int argc, const char *argv[]) {
-    // assert(argc == 5);
+    assert(argc == 4 || argc == 3);
     auto mode = argv[1];
     auto input = argv[2];
-    // auto output = argv[4];
+    bool dumpFile { argc == 4 && (strcmp(argv[3], "-f") == 0) };
+    const char* outKoopa = "out.koopa";
+    const char* outASM = "out.S";
 
     yyin = fopen(input, "r");
     assert(yyin);
 
     BaseAST* ast { nullptr };
+    yydebug = 0;
     auto ret = yyparse(ast);
     assert(!ret);
 
+    // AST
     auto* cu = dynamic_cast<CompUnitAST*>(ast);
+    // cu->Dump();
     assert(cu);
 
-    koopa_raw_program_t rawProgram {};
-    koopa_program_t program { nullptr };
-    cu->GenRawProgram(rawProgram);
+    // IR
+    cu->GenIR(&__IR_TOP__);
 
-    if (strcmp(mode, "-koopa") == 0) {
-        auto errorcode = koopa_generate_raw_to_koopa(&rawProgram, &program);
-        assert(errorcode == KOOPA_EC_SUCCESS);
-        koopa_dump_llvm_to_stdout(program);   
-    } else if (strcmp(mode, "-riscv") == 0) {
-        rawProgram2RISCV p2r;
-        std::cout << p2r.generate_RISCV_str(rawProgram);
+    if (strcmp(mode, "koopa") == 0) {
+        if (dumpFile) {
+            auto fp = std::ofstream(outKoopa);
+            __IR_TOP__.dump(fp);
+        } else {
+            __IR_TOP__.dump(std::cout);
+        }
+    } else if (strcmp(mode, "asm") == 0) {
+        // ASM
+        __IR_TOP__.gen_asm(&__ASMER__);
+        if (dumpFile) {
+            auto fp = std::ofstream(outASM);
+            __ASMER__.dump(fp);
+        } else {
+            __ASMER__.dump(std::cout);
+        }
     }
 
     return 0;

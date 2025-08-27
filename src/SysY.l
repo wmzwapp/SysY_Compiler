@@ -36,13 +36,14 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 
 "int"           { return INT; }
 "return"        { return RETURN; }
+"+"             { yylval.str_val = strdup(yytext); return PLUS; }
+"-"             { yylval.str_val = strdup(yytext); return MINUS; }
+"!"             { yylval.str_val = strdup(yytext); return LNOT; }
+"*"             { yylval.str_val = strdup(yytext); return MUL; }
+"/"             { yylval.str_val = strdup(yytext); return DIV; }
+"%"             { yylval.str_val = strdup(yytext); return MOD; }
 
-{Identifier}    {
-    yylval.str_val = (char *)malloc(yyleng + 1);
-    strncpy(yylval.str_val, yytext, yyleng);
-    yylval.str_val[yyleng] = '\0';
-    return IDENT;
-}
+{Identifier}    { yylval.str_val = strdup(yytext); return IDENT; }
 
 {Decimal}       { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }
 {Octal}         { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }

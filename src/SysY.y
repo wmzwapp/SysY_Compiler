@@ -1,7 +1,11 @@
 %code requires {
     #include <memory>
     #include <string>
-    #include <ast.hh>
+    #include "ast/BaseAST.hh"
+    #include "ast/CompUnitAST.hh"
+    #include "ast/FuncDefAST.hh"
+    #include "ast/BlockAST.hh"
+    #include "ast/StmtAST.hh"
 }
 
 %{
@@ -9,7 +13,11 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <ast.hh>
+#include "ast/BaseAST.hh"
+#include "ast/CompUnitAST.hh"
+#include "ast/FuncDefAST.hh"
+#include "ast/BlockAST.hh"
+#include "ast/StmtAST.hh"
 
 // 声明 lexer 函数和错误处理函数
 int yylex();
@@ -18,6 +26,8 @@ void yyerror(BaseAST *ast, const char *s);
 using namespace std;
 
 %}
+
+%debug
 
 // 定义 parser 函数的附加参数
 %parse-param { BaseAST *&ast }
@@ -34,12 +44,13 @@ using namespace std;
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
 %token INT RETURN
-%token <str_val> IDENT
+%token <str_val> IDENT PLUS MINUS LNOT MUL DIV MOD
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef FuncType Block Stmt
-%type <int_val> Number
+%type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp UnaryExp Number
+%type <ast_val> AddExp MulExp
+%type <str_val> UnaryOp BinaryOp1 BinaryOp2
 
 %%
 
@@ -88,16 +99,95 @@ Block
     ;
 
 Stmt
-    : RETURN Number ';' {
-        auto* ast = new StmtAST();
-        ast->setNum($2);
+    : RETURN Exp ';' {
+        auto *ast = new StmtAST();
+        ast->setRetExp($2);
+        $$ = ast;
+    }
+    ;
+
+Exp
+    : AddExp {
+        auto* ast = new ExpAST();
+        ast->set_add_exp($1);
+        $$ = ast;
+    }
+    ;
+
+PrimaryExp
+    : '(' Exp ')' {
+        auto* ast = new PrimaryExpAST();
+        ast->setExp($2);
+        $$ = ast;
+    }
+    | Number {
+        auto* ast = new PrimaryExpAST();
+        ast->setNumber($1);
         $$ = ast;
     }
     ;
 
 Number
     : INT_CONST {
-        $$ = $1;
+        auto* ast = new NumberAST();
+        ast->setValue($1);
+        $$ = ast;
+    }
+    ;
+
+UnaryExp
+    : PrimaryExp {
+        auto* ast = new UnaryExpAST();
+        ast->setPrimaryExp($1);
+        $$ = ast;
+    }
+    | UnaryOp UnaryExp {
+        auto* ast = new UnaryExpAST();
+        ast->setUnaryOp($1);
+        ast->setUnaryExp($2);
+        free((void*)$1);
+        $$ = ast;
+    }
+    ;
+
+UnaryOp
+    : PLUS | MINUS | LNOT
+
+BinaryOp1
+    : PLUS | MINUS
+
+BinaryOp2
+    : MUL | DIV | MOD
+
+AddExp
+    : MulExp {
+        auto* ast = new AddExpAST();
+        ast->set_mul_exp($1);
+        $$ = ast;
+    }
+    | AddExp BinaryOp1 MulExp {
+        auto* ast = new AddExpAST();
+        ast->set_add_exp($1);
+        ast->set_op($2);
+        ast->set_mul_exp($3);
+        free((void*)$2);
+        $$ = ast;
+    }
+    ;
+
+MulExp
+    : UnaryExp {
+        auto* ast = new MulExpAST();
+        ast->set_unary_exp($1);
+        $$ = ast;
+    }
+    | MulExp BinaryOp2 UnaryExp {
+        auto* ast = new MulExpAST();
+        ast->set_mul_exp($1);
+        ast->set_op($2);
+        ast->set_unary_exp($3);
+        free((void*)$2);
+        $$ = ast;
     }
     ;
 
