@@ -3,13 +3,14 @@
 #include "BaseIR.hh"
 #include "StmtIR.hh"
 #include "../asm/cfg.hh"
+#include "common/utils.hh"
 
 
 class BlockIR : public IRBase {
   public:
-	inline static constexpr IRObjType TYPE_ID_ { IRObjType::BlockIR };
+	inline static constexpr ObjType TYPE_ID_ { ObjType::BlockIR };
 
-	BlockIR(std::string sym): sym_(std::move(sym)) { IR_SET_TYPE(BlockIR); }
+	BlockIR(std::string sym): sym_(std::move(sym)) { SET_TYPE_ID(BlockIR); }
 
   public:
 	void dump(std::ostream& os) const override;

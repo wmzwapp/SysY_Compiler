@@ -5,7 +5,6 @@
 #include "asm/cfg.hh"
 #include "asm/instr.hh"
 #include "asm/var.hh"
-#include <cstdint>
 #include <ostream>
 
 
@@ -26,9 +25,9 @@ class StmtIR : public IRBase {
 
 class StmtRetIR : public StmtIR {
   public:
-	inline static constexpr IRObjType TYPE_ID_ { IRObjType::StmtRetIR };
+	inline static constexpr ObjType TYPE_ID_ { ObjType::StmtRetIR };
 
-	StmtRetIR(ValueIR* retV): value_(retV) { IR_SET_TYPE(StmtRetIR); }
+	StmtRetIR(ValueIR* retV): value_(retV) { SET_TYPE_ID(StmtRetIR); }
 
   public:
 	bool isReturn() const override { return true; }
@@ -71,11 +70,11 @@ enum class BinaryOp {
 
 class StmtBinaryExprIR : public StmtIR {
   public:
-	inline static constexpr IRObjType TYPE_ID_ { IRObjType::StmtBinaryExprIR };
+	inline static constexpr ObjType TYPE_ID_ { ObjType::StmtBinaryExprIR };
 
-	StmtBinaryExprIR(BinaryOp op, ValueIR* ret, ValueIR* opnd1, ValueIR* opnd2):
+	StmtBinaryExprIR(BinaryOp op, SymbolIR* ret, ValueIR* opnd1, ValueIR* opnd2):
 		op_(op), result_(ret), opnd1_(opnd1), opnd2_(opnd2) {
-		IR_SET_TYPE(StmtBinaryExprIR);
+		SET_TYPE_ID(StmtBinaryExprIR);
 	}
 
   public:
@@ -96,24 +95,34 @@ class StmtBinaryExprIR : public StmtIR {
 
 	inline void dumpOp(std::ostream& os) const;
 
-
   public:
 	Instruction* gen_asm_eq(BasicBlockASM* bb);
+	Instruction* gen_asm_ne(BasicBlockASM* bb);
 	Instruction* gen_asm_sub(BasicBlockASM* bb);
 	Instruction* gen_asm_add(BasicBlockASM* bb);
 	Instruction* gen_asm_mul(BasicBlockASM* bb);
+	Instruction* gen_asm_div(BasicBlockASM* bb);
+	Instruction* gen_asm_mod(BasicBlockASM* bb);
+	Instruction* gen_asm_lt(BasicBlockASM* bb);
+	Instruction* gen_asm_gt(BasicBlockASM* bb);
+	Instruction* gen_asm_le(BasicBlockASM* bb);
+	Instruction* gen_asm_ge(BasicBlockASM* bb);
+	Instruction* gen_asm_and(BasicBlockASM* bb);
+	Instruction* gen_asm_or(BasicBlockASM* bb);
 
-	VarASM* i2r(BasicBlockASM* bb, uint32_t i) {
-		auto* reg = bb->get_temp_var();
-		bb->push_back_instr(new Instr2RI(InstrOp::LI, reg, i));
-		return reg;
-	}
+	// VarASM* i2r(BasicBlockASM* bb, uint32_t i) {
+	// 	auto* reg = bb->get_temp_var();
+	// 	bb->push_back_instr(new Instr2RI(InstrOp::LI, reg, i));
+	// 	return reg;
+	// }
+
+	void set_ret_reg_var(VarASM* var) { result_->set_reg_var(var); }
 
   private:
-	BinaryOp op_ { BinaryOp::BAD };		// operator
-	ValueIR* result_ { nullptr };
-	ValueIR* opnd1_ { nullptr };		// operand1
-	ValueIR* opnd2_ { nullptr };		// operand2
+	BinaryOp	op_		{ BinaryOp::BAD };	// operator
+	SymbolIR*	result_	{ nullptr };
+	ValueIR*	opnd1_	{ nullptr };		// operand1
+	ValueIR*	opnd2_	{ nullptr };		// operand2
 };
 
 

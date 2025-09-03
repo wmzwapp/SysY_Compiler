@@ -12,7 +12,7 @@ class BlockAST : public BaseAST {
   public:
 	void Dump() const override;
 
-	void GenIR(FunctionIR* ir);
+	void gen_ir(GenIRCfg* cfg) override;
 
   public:
 	void setStmtAST(BaseAST* ast) { stmt_ = (StmtAST*)ast; }

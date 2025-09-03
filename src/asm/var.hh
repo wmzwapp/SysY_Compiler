@@ -10,6 +10,8 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, const VarASM& obj) { os << obj.name_; return os; }
 
+    bool is_temp() const { return isTemp_; }
+
 private:
     std::string name_;
     bool isTemp_ { false };

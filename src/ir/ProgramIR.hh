@@ -8,10 +8,10 @@
 
 class ProgramIR : public IRBase {
   public:
-	inline static constexpr IRObjType TYPE_ID_ { IRObjType::ProgramIR };
+	inline static constexpr ObjType TYPE_ID_ { ObjType::ProgramIR };
 
-	ProgramIR() { IR_SET_TYPE(ProgramIR); }
-	
+	ProgramIR() { SET_TYPE_ID(ProgramIR); }
+
 	void dump(std::ostream& os) const override;
 	
   public:

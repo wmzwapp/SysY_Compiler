@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "ast/BaseAST.hh"
 #include "ast/CompUnitAST.hh"
 #include "../ext/include/koopa.h"
 #include "ir/ProgramIR.hh"
@@ -35,7 +36,9 @@ int main (int argc, const char *argv[]) {
     assert(cu);
 
     // IR
-    cu->GenIR(&__IR_TOP__);
+    GenIRCfg irCfg;
+    irCfg.set_current_programIR(&__IR_TOP__);
+    cu->gen_ir(&irCfg);
 
     if (strcmp(mode, "koopa") == 0) {
         if (dumpFile) {

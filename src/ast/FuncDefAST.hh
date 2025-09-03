@@ -11,6 +11,7 @@
 class FuncTypeAST : public BaseAST {
   public:
 	void Dump() const override;
+	void gen_ir(GenIRCfg* cfg) override { }
 
   public:
 	TypeIR* getType();
@@ -28,8 +29,9 @@ class FuncTypeAST : public BaseAST {
 class FuncDefAST : public BaseAST {
   public:
 	void Dump() const override;
+	void gen_ir(GenIRCfg* cfg) override;
 
-	IRBase* GenIR();
+	// IRBase* GenIR();
 
   public:
 	// void GenRawFunc(koopa_raw_function_t &fptr);

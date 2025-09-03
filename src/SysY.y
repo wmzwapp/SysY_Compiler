@@ -44,13 +44,13 @@ using namespace std;
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
 %token INT RETURN
-%token <str_val> IDENT PLUS MINUS LNOT MUL DIV MOD
+%token <str_val> IDENT PLUS MINUS LNOT MUL DIV MOD LT GT LE GE EQ NEQ LAND LOR
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
 %type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp UnaryExp Number
-%type <ast_val> AddExp MulExp
-%type <str_val> UnaryOp BinaryOp1 BinaryOp2
+%type <ast_val> AddExp MulExp RelExp EqExp LAndExp LOrExp
+%type <str_val> UnaryOp BinaryOp1 BinaryOp2 BinaryOp3 BinaryOp4
 
 %%
 
@@ -107,9 +107,9 @@ Stmt
     ;
 
 Exp
-    : AddExp {
+    : LOrExp {
         auto* ast = new ExpAST();
-        ast->set_add_exp($1);
+        ast->set_exp($1);
         $$ = ast;
     }
     ;
@@ -159,17 +159,23 @@ BinaryOp1
 BinaryOp2
     : MUL | DIV | MOD
 
+BinaryOp3
+    : LT | GT | LE | GE
+
+BinaryOp4
+    : EQ | NEQ
+
 AddExp
     : MulExp {
-        auto* ast = new AddExpAST();
-        ast->set_mul_exp($1);
+        auto* ast = BinaryExpAST::create_add_exp();
+        ast->set_other_exp($1);
         $$ = ast;
     }
     | AddExp BinaryOp1 MulExp {
-        auto* ast = new AddExpAST();
-        ast->set_add_exp($1);
-        ast->set_op($2);
-        ast->set_mul_exp($3);
+        auto* ast = BinaryExpAST::create_add_exp();
+        ast->set_binary_opnd1($1);
+        ast->set_binary_op($2);
+        ast->set_binary_opnd2($3);
         free((void*)$2);
         $$ = ast;
     }
@@ -177,15 +183,79 @@ AddExp
 
 MulExp
     : UnaryExp {
-        auto* ast = new MulExpAST();
-        ast->set_unary_exp($1);
+        auto* ast = BinaryExpAST::create_mul_exp();
+        ast->set_other_exp($1);
         $$ = ast;
     }
     | MulExp BinaryOp2 UnaryExp {
-        auto* ast = new MulExpAST();
-        ast->set_mul_exp($1);
-        ast->set_op($2);
-        ast->set_unary_exp($3);
+        auto* ast = BinaryExpAST::create_mul_exp();
+        ast->set_binary_opnd1($1);
+        ast->set_binary_op($2);
+        ast->set_binary_opnd2($3);
+        free((void*)$2);
+        $$ = ast;
+    }
+    ;
+
+RelExp
+    : AddExp {
+        auto* ast = BinaryExpAST::create_rel_exp();
+        ast->set_other_exp($1);
+        $$ = ast;
+    }
+    | RelExp BinaryOp3 AddExp {
+        auto* ast = BinaryExpAST::create_rel_exp();
+        ast->set_binary_opnd1($1);
+        ast->set_binary_op($2);
+        ast->set_binary_opnd2($3);
+        free((void*)$2);
+        $$ = ast;
+    }
+    ;
+
+EqExp
+    : RelExp {
+        auto* ast = BinaryExpAST::create_eq_exp();
+        ast->set_other_exp($1);
+        $$ = ast;
+    }
+    | EqExp BinaryOp4 RelExp {
+        auto* ast = BinaryExpAST::create_eq_exp();
+        ast->set_binary_opnd1($1);
+        ast->set_binary_op($2);
+        ast->set_binary_opnd2($3);
+        free((void*)$2);
+        $$ = ast;
+    }
+    ;
+
+LAndExp
+    : EqExp {
+        auto* ast = BinaryExpAST::create_land_exp();
+        ast->set_other_exp($1);
+        $$ = ast;
+    }
+    | LAndExp LAND EqExp {
+        auto* ast = BinaryExpAST::create_land_exp();
+        ast->set_binary_opnd1($1);
+        ast->set_binary_op($2);
+        ast->set_binary_opnd2($3);
+        free((void*)$2);
+        $$ = ast;
+    }
+    ;
+
+LOrExp
+    : LAndExp {
+        auto* ast = BinaryExpAST::create_lor_exp();
+        ast->set_other_exp($1);
+        $$ = ast;
+    }
+    | LOrExp LOR LAndExp {
+        auto* ast = BinaryExpAST::create_lor_exp();
+        ast->set_binary_opnd1($1);
+        ast->set_binary_op($2);
+        ast->set_binary_opnd2($3);
         free((void*)$2);
         $$ = ast;
     }

@@ -10,9 +10,9 @@
 
 class FunctionIR : public IRBase {
   public:
-	inline static constexpr IRObjType TYPE_ID_ { IRObjType::FunctionIR };
+	inline static constexpr ObjType TYPE_ID_ { ObjType::FunctionIR };
 
-	FunctionIR(SymbolIR* funcSym): sym_(funcSym) { IR_SET_TYPE(FunctionIR); }
+	FunctionIR(SymbolIR* funcSym): sym_(funcSym) { SET_TYPE_ID(FunctionIR); }
 
   public:
 	void dump(std::ostream& os) const override;

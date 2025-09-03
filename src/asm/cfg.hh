@@ -70,6 +70,13 @@ class BasicBlockASM {
 		currentInstr_ = instr;
 	}
 
+	template<typename T, typename... Args>
+	T* create_instr(Args&&... args) {
+		auto* instr = new T(std::forward<Args>(args)...);
+		push_back_instr(instr);
+		return instr;
+	}
+
 	static VarASM* get_temp_var() {
 		static uint32_t count_;
 		return new VarASM(std::string("t") + std::to_string(count_++), true);

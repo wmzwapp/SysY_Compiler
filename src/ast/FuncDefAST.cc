@@ -1,7 +1,6 @@
 #include "FuncDefAST.hh"
-#include "ir/BaseIR.hh"
-#include "ir/FunctionIR.hh"
-#include "ir/ValueIR.hh"
+
+#include "BaseAST.hh"
 
 #include <cassert>
 #include <iostream>
@@ -16,7 +15,7 @@ void FuncDefAST::Dump() const {
 }
 
 
-IRBase* FuncDefAST::GenIR() {
+void FuncDefAST::gen_ir(GenIRCfg* cfg) {
     // symbol & function IR
     auto* sym = new SymbolIR(ident_);
     auto* funcIR = new FunctionIR(sym);
@@ -30,12 +29,13 @@ IRBase* FuncDefAST::GenIR() {
     }
     type->setPrototype(funcIR);
 
+    cfg->get_current_programIR()->appendFunctionIR(funcIR);
+    cfg->set_current_functionIR(funcIR);
+
     // blocks
     if (block_ != nullptr) {
-        block_->GenIR(funcIR);
+        block_->gen_ir(cfg);
     }
-
-    return funcIR;
 }
 
 

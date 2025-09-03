@@ -1,39 +1,23 @@
 #pragma once
 
-#include <cstdint>
+#include "../common/utils.hh"
+
 #include <ostream>
 #include <sstream>
 
-enum class IRObjType : uint32_t {
-	IRBase,
-
-	// value
-	ValueIntIR,
-	SymbolIR,
-
-	// entity
-	ProgramIR,
-	FunctionIR,
-	BlockIR,
-	StmtRetIR,
-	StmtBinaryExprIR,
-};
-
-#define IR_SET_TYPE(T) setTypeId(IRObjType::T)
-
 class IRBase {
-	IRObjType typeId_;
+	ObjType typeId_;
 
   public:
 	virtual ~IRBase() = default;
 
   public:
-	void setTypeId(IRObjType type) { typeId_ = type; }
-	IRObjType getTypeId() const { return typeId_; }
+	void set_type_id(ObjType type) { typeId_ = type; }
+	ObjType get_type_id() const { return typeId_; }
 
-	IRBase() {
-		IR_SET_TYPE(IRBase);
-	}
+	// IRBase() {
+	// 	SET_TYPE_ID(IRBase);
+	// }
 
   public:
 	virtual void dump(std::ostream& os) const = 0;
@@ -43,10 +27,4 @@ class IRBase {
 		return ss.str();	
 	};
 };
-
-template<typename T>
-inline bool isa(const IRBase* obj) {
-	return obj->getTypeId() == T::TYPE_ID_;
-}
-
 

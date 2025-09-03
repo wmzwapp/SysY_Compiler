@@ -18,10 +18,10 @@ class ValueIR : public IRBase {
 
 class ValueIntIR : public ValueIR {
   public:
-	static inline constexpr IRObjType TYPE_ID_ { IRObjType::ValueIntIR };
+	static inline constexpr ObjType TYPE_ID_ { ObjType::ValueIntIR };
 
 	ValueIntIR(TypeIntIR* ty, int v) : value_(v) {
-		IR_SET_TYPE(ValueIntIR);
+		SET_TYPE_ID(ValueIntIR);
 		type_ = ty;
 	}
 
@@ -35,10 +35,10 @@ class ValueIntIR : public ValueIR {
 
 class SymbolIR : public ValueIR {
   public:
-	static inline constexpr IRObjType TYPE_ID_ { IRObjType::SymbolIR };
+	static inline constexpr ObjType TYPE_ID_ { ObjType::SymbolIR };
 
-	SymbolIR(std::string sym) : isTemp_(false), sym_(sym) { IR_SET_TYPE(SymbolIR); }
-	SymbolIR(uint64_t idx): isTemp_(true), sym_(std::to_string(idx)) { IR_SET_TYPE(SymbolIR); }
+	SymbolIR(std::string sym) : isTemp_(false), sym_(sym) { SET_TYPE_ID(SymbolIR); }
+	SymbolIR(uint64_t idx): isTemp_(true), sym_(std::to_string(idx)) { SET_TYPE_ID(SymbolIR); }
 
   public:
 	void dump(std::ostream& os) const {
