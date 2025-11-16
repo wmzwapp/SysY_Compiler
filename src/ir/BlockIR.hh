@@ -2,15 +2,16 @@
 
 #include "BaseIR.hh"
 #include "StmtIR.hh"
-#include "../asm/cfg.hh"
 #include "common/utils.hh"
+#include "ir/TypeIR.hh"
+#include <vector>
 
 
 class BlockIR : public IRBase {
   public:
 	inline static constexpr ObjType TYPE_ID_ { ObjType::BlockIR };
 
-	BlockIR(std::string sym): sym_(std::move(sym)) { SET_TYPE_ID(BlockIR); }
+	BlockIR(std::string sym): IRBase(new TypeUnitIR()), sym_(std::move(sym)) { SET_TYPE_ID(BlockIR); }
 
   public:
 	void dump(std::ostream& os) const override;
@@ -21,7 +22,9 @@ class BlockIR : public IRBase {
 
 	bool isEntryBlock() { return sym_ == "entry"; }
 
-	void gen_asm(FuncASM* func);
+	std::vector<StmtIR*>& get_stmts() { return stmts_; }
+
+	void gen_asm(GenASMCfg* cfg) override;
   private:
 	std::vector<StmtIR*> stmts_;
 	StmtIR* endStmt_ { nullptr };

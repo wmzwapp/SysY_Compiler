@@ -12,7 +12,7 @@
 class FuncASM;
 class BasicBlockASM;
 
-class ConfigASM {
+class TOPASM {
   public:
 	void dump(std::ostream& os);
 
@@ -22,7 +22,7 @@ class ConfigASM {
 	std::vector<FuncASM*> funcs_;
 };
 
-static ConfigASM __ASMER__;
+static TOPASM __ASMER__;
 
 class FuncASM {
   public:
@@ -43,9 +43,10 @@ class FuncASM {
 };
 
 
-inline std::unordered_map<std::string, VarASM> _reservedRegVarMap_ {
-	{ "x0", VarASM("x0") },
-	{ "a0", VarASM("a0") }
+inline std::unordered_map<std::string, VarASM*> _reservedRegVarMap_ {
+	{ "x0", new VarASM("x0") },
+	{ "a0", new VarASM("a0") },
+	{"sp", new VarASM("sp")},
 };
 
 
@@ -77,13 +78,26 @@ class BasicBlockASM {
 		return instr;
 	}
 
-	static VarASM* get_temp_var() {
+	static VarASM* get_temp_var(int idx = -1) {
 		static uint32_t count_;
-		return new VarASM(std::string("t") + std::to_string(count_++), true);
+		std::string sym;
+		if (idx >= 0) {
+			sym = std::string("t") + std::to_string(idx);
+		} else {
+			sym = std::string("t") + std::to_string(count_++);
+		}
+		if (_reservedRegVarMap_.find(sym) == _reservedRegVarMap_.end()) {
+			auto* tmp = new VarASM(sym, true);
+			_reservedRegVarMap_[sym] = tmp;
+			return tmp;
+		} else {
+			return _reservedRegVarMap_[sym];
+		}
 	}
 
-	static VarASM* get_reg_var_x0() { return &_reservedRegVarMap_.at("x0"); }
-	static VarASM* get_reg_var_a0() { return &_reservedRegVarMap_.at("a0"); }
+	static VarASM* get_reg_var_x0() { return _reservedRegVarMap_.at("x0"); }
+	static VarASM* get_reg_var_a0() { return _reservedRegVarMap_.at("a0"); }
+	static VarASM* get_reg_var_sp() { return _reservedRegVarMap_.at("sp"); }
 
 	std::string get_label() { return sym_; }
 

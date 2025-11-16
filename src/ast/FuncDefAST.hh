@@ -2,25 +2,7 @@
 
 #include "BaseAST.hh"
 #include "BlockAST.hh"
-// #include "ir/ValueIR.hh"
-
-
-/*
-	FuncType ::= "int";
-*/
-class FuncTypeAST : public BaseAST {
-  public:
-	void Dump() const override;
-	void gen_ir(GenIRCfg* cfg) override { }
-
-  public:
-	TypeIR* getType();
-
-	void setFuncTypeStr(const char* s) { funcType_ = std::string(s); }
-
-  private:
-	std::string funcType_;
-};
+#include "VarAST.hh"
 
 
 /*
@@ -28,20 +10,19 @@ class FuncTypeAST : public BaseAST {
 */
 class FuncDefAST : public BaseAST {
   public:
+  FuncDefAST(const char* ident, BaseAST* block): ident_(ident), block_((BlockAST*)block) {}
+	~FuncDefAST() override { delete block_; }
+
 	void Dump() const override;
 	void gen_ir(GenIRCfg* cfg) override;
 
-	// IRBase* GenIR();
-
   public:
-	// void GenRawFunc(koopa_raw_function_t &fptr);
-
-	void setFuncTypeAST(BaseAST* ast) { funcType_ = (FuncTypeAST*)ast; }
-	void setIdent(const char *s) { ident_ = std::string(s); }
-	void setBlockAST(BaseAST* ast) { block_ = (BlockAST*)ast; }
+	// void setFuncTypeAST() { funcType_ = new TypeAST(); }
+	// void setIdent(const char *s) { ident_ = new VarAST(s); }
+	// void setBlockAST(BaseAST* ast) { block_ = (BlockAST*)ast; }
 
   private:
-	FuncTypeAST* funcType_ { nullptr };
-	std::string ident_;
-	BlockAST* block_ { nullptr };
+	TypeAST		funcType_;
+	VarAST		ident_;
+	BlockAST*	block_		{ nullptr };
 };

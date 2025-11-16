@@ -1,7 +1,7 @@
 #include "cfg.hh"
 #include <ostream>
 
-void ConfigASM::dump(std::ostream& os) {
+void TOPASM::dump(std::ostream& os) {
     os << ".text\n";
     for (auto* func : funcs_) {
         os << ".globl " << func->get_entry_label() << std::endl;
@@ -17,7 +17,7 @@ std::string FuncASM::get_entry_label() {
 }
 
 
-FuncASM* ConfigASM::create_func(std::string funcName) {
+FuncASM* TOPASM::create_func(std::string funcName) {
     auto* func = new FuncASM(funcName);
     funcs_.push_back(func);
     return func;

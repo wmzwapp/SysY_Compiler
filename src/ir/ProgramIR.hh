@@ -2,24 +2,23 @@
 
 #include "BaseIR.hh"
 #include "FunctionIR.hh"
-#include "ValueIR.hh"
-#include "../asm/cfg.hh"
+#include "TypeIR.hh"
 
 
 class ProgramIR : public IRBase {
   public:
 	inline static constexpr ObjType TYPE_ID_ { ObjType::ProgramIR };
 
-	ProgramIR() { SET_TYPE_ID(ProgramIR); }
+	ProgramIR(): IRBase(new TypeUnitIR()) { SET_TYPE_ID(ProgramIR); }
 
 	void dump(std::ostream& os) const override;
 	
   public:
-	void gen_asm(ConfigASM* asmer);
+	void gen_asm(GenASMCfg* cfg) override;
 	void appendFunctionIR(FunctionIR* func) { funcs_.push_back(func); }
 
   private:
-	std::vector<ValueIR*>       	gValues_;
+	// std::vector<ValueIR*>       	gValues_;
 	std::vector<FunctionIR*>    	funcs_;
 };
 

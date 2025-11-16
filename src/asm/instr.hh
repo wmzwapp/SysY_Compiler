@@ -28,6 +28,8 @@ enum class InstrOp {
 	ANDI,			// <andi rd, rs1, imm12> : 计算 rs1 寄存器和 imm12 (andi) 按位与的值, 存入 rd 寄存器.
 	OR,				// <or rd, rs1, rs2> : 计算 rs1 寄存器和 rs2 寄存器 (or)按位或的值, 存入 rd 寄存器.
 	ORI,			// <ori rd, rs1, imm12> : 计算 rs1 寄存器和 imm12 (ori) 按位或的值, 存入 rd 寄存器.
+	LW,				// <lw rs, imm12(rd)> : 计算 rd 寄存器的值与 imm12 相加的结果作为访存地址, 从内存中读取 32-bit 的数据, 存入 rs 寄存器.
+	SW,				// <sw rs2, imm12(rs1)>: 计算 rs1 寄存器的值与 imm12 相加的结果作为访存地址, 将 rs2 寄存器的值 (32-bit) 存入内存.
 };
 
 
@@ -103,12 +105,18 @@ class Instr3: public Instruction {
 		os << std::left;
 		os << std::setw(7) << dumpOp(op_);
 		os << std::setw(4) << *ret_ << ", ";
-		static_assert(std::is_pointer_v<T1>, "None RegVar type var was used as destination value.");
-		os << std::setw(4) << *opnd1_ << ", ";
-		if constexpr (std::is_pointer_v<T2>) {
-			os << std::setw(4) << *opnd2_;
+		if constexpr (std::is_same_v<T1, int>) {
+			os << std::setw(4) << opnd1_ << "(";
+			static_assert(std::is_pointer_v<T2>, "None RegVar type var was used as destination value.");
+			os << std::setw(4) << *opnd2_ << ")";
 		} else {
-			os << std::setw(4) << opnd2_;
+			static_assert(std::is_pointer_v<T1>, "None RegVar type var was used as destination value.");
+			os << std::setw(4) << *opnd1_ << ", ";
+			if constexpr (std::is_pointer_v<T2>) {
+				os << std::setw(4) << *opnd2_;
+			} else {
+				os << std::setw(4) << opnd2_;
+			}
 		}
 		os << std::right;
 	}
@@ -122,10 +130,11 @@ class Instr3: public Instruction {
 	T2          opnd2_;
 };
 
-using Instr2RI = Instr2<uint32_t>;
+using Instr2RI = Instr2<int>;
 using Instr2RR = Instr2<VarASM*>;
 using Instr3RRR = Instr3<VarASM*, VarASM*>;
-using Instr3RRI = Instr3<VarASM*, uint32_t>;
+using Instr3RRI = Instr3<VarASM*, int>;
+using Instr3RIR = Instr3<int, VarASM*>;
 
 
 std::string_view Instruction::dumpOp(InstrOp op) {
@@ -149,6 +158,8 @@ std::string_view Instruction::dumpOp(InstrOp op) {
 		case InstrOp::ANDI: return "andi";
 		case InstrOp::OR: return "or";
 		case InstrOp::ORI: return "ori";
+		case InstrOp::LW: return "lw";
+		case InstrOp::SW: return "sw";
 		default:
 			return "";
 	}

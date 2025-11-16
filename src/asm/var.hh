@@ -12,7 +12,11 @@ public:
 
     bool is_temp() const { return isTemp_; }
 
+    // void set_offset(unsigned offset) { stkOffset_ = offset; }
+    // unsigned get_offset() const { return stkOffset_; }
+
 private:
     std::string name_;
     bool isTemp_ { false };
+    // unsigned stkOffset_ { (unsigned)-1 };
 };

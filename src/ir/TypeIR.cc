@@ -1,5 +1,4 @@
 #include "TypeIR.hh"
-#include "ir/BaseIR.hh"
 #include "ir/FunctionIR.hh"
 
 #include <cassert>
@@ -7,7 +6,7 @@
 
 
 void TypeFuncIR::dump(std::ostream& os) const {
-    assert(isa<FunctionIR>(prototype_));
+    assert(isa<FunctionIR*>(prototype_));
     static_cast<FunctionIR*>(prototype_)->getSym()->dump(os);
     os << "(): ";
     retType_->dump(os);

@@ -7,6 +7,7 @@
 #include "ast/BaseAST.hh"
 #include "ast/CompUnitAST.hh"
 #include "../ext/include/koopa.h"
+#include "ir/BaseIR.hh"
 #include "ir/ProgramIR.hh"
 #include "asm/cfg.hh"
 
@@ -28,7 +29,9 @@ int main (int argc, const char *argv[]) {
     BaseAST* ast { nullptr };
     yydebug = 0;
     auto ret = yyparse(ast);
-    assert(!ret);
+    if (ret) {
+        return 1;
+    }
 
     // AST
     auto* cu = dynamic_cast<CompUnitAST*>(ast);
@@ -49,7 +52,9 @@ int main (int argc, const char *argv[]) {
         }
     } else if (strcmp(mode, "asm") == 0) {
         // ASM
-        __IR_TOP__.gen_asm(&__ASMER__);
+        GenASMCfg cfg;
+        cfg.top_ = &__ASMER__;
+        __IR_TOP__.gen_asm(&cfg);
         if (dumpFile) {
             auto fp = std::ofstream(outASM);
             __ASMER__.dump(fp);

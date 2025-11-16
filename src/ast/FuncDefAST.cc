@@ -1,6 +1,6 @@
 #include "FuncDefAST.hh"
-
 #include "BaseAST.hh"
+#include "ast/VarAST.hh"
 
 #include <cassert>
 #include <iostream>
@@ -8,25 +8,26 @@
 
 void FuncDefAST::Dump() const {
     std::cout << "<FuncDef> { ";
-    funcType_->Dump();
-    std::cout << ", " << ident_ << ", ";
+    funcType_.repr();
+    std::cout << ", ";
+    ident_.repr();
+    std::cout << ", ";
     block_->Dump();
     std::cout << " }";
 }
 
 
 void FuncDefAST::gen_ir(GenIRCfg* cfg) {
-    // symbol & function IR
-    auto* sym = new SymbolIR(ident_);
-    auto* funcIR = new FunctionIR(sym);
-
+    
     // type
-    auto* type = new TypeFuncIR();
-    sym->setType(type);
-    if (funcType_ != nullptr) {
-        auto* retType = funcType_->getType();
-        type->setRetType(retType);
-    }
+    auto* type = TypeAST::get_func_type_ir();
+    auto* retType = TypeAST::get_int_type_ir();
+    type->setRetType(retType);
+    
+    // symbol & function IR
+    auto* sym = SymbolIR::create_named_var(ident_.get_ident(), TypeAST::get_unit_type_ir());
+    auto* funcIR = new FunctionIR(sym, type);
+
     type->setPrototype(funcIR);
 
     cfg->get_current_programIR()->appendFunctionIR(funcIR);
@@ -36,19 +37,4 @@ void FuncDefAST::gen_ir(GenIRCfg* cfg) {
     if (block_ != nullptr) {
         block_->gen_ir(cfg);
     }
-}
-
-
-void FuncTypeAST::Dump() const {
-    std::cout << "<FuncType> { ";
-    std::cout << funcType_;
-    std::cout << " }";
-}
-
-
-TypeIR* FuncTypeAST::getType() {
-    if (funcType_ == "int") {
-        return new TypeIntIR();
-    }
-    return nullptr;
 }

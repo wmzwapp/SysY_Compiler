@@ -9,6 +9,8 @@
 */
 class CompUnitAST : public BaseAST {
   public:
+	~CompUnitAST() override { delete funcDef_; }
+
 	void Dump() const override {
 		std::cout << "<CompUnit> { ";
 		funcDef_->Dump();
