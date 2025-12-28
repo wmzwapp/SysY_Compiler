@@ -2,13 +2,11 @@
 
 #include "BaseIR.hh"
 #include "ValueIR.hh"
-#include "asm/instr.hh"
-#include "asm/var.hh"
 #include <ostream>
 
 
 class StmtIR : public IRBase {
-  public:
+public:
 	StmtIR(TypeIR* ir) : IRBase(ir) {}
 
 	virtual bool isReturn() const { return false; }
@@ -20,18 +18,16 @@ class StmtIR : public IRBase {
 
 	bool isEndStatement() const { return isBranch() || isJump() || isReturn(); }
 
-	// virtual void gen_asm(GenASMCfg* cfg) { return nullptr; }
 	virtual SymbolIR* get_def_var() { return nullptr; }
 };
 
 
 class StmtRetIR : public StmtIR {
-  public:
+public:
 	inline static constexpr ObjType TYPE_ID_ { ObjType::StmtRetIR };
+	StmtRetIR(ValueIR* retV): StmtIR(mmpool_.make<TypeUnitIR>()), value_(retV) { SET_TYPE_ID(StmtRetIR); }
 
-	StmtRetIR(ValueIR* retV): StmtIR(new TypeUnitIR()), value_(retV) { SET_TYPE_ID(StmtRetIR); }
-
-  public:
+public:
 	bool isReturn() const override { return true; }
 	void dump(std::ostream& os) const override {
 		os << "\tret ";
@@ -40,10 +36,12 @@ class StmtRetIR : public StmtIR {
 		}
 		os << std::endl;
 	}
+	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
 
-	void gen_asm(GenASMCfg* cfg) override;
+public:
+	ValueIR* get_value() { return value_; }
 
-  private:
+private:
 	ValueIR* value_ { nullptr };
 };
 
@@ -71,17 +69,16 @@ enum class BinaryOp {
 
 
 class StmtBinaryExprIR : public StmtIR {
-  public:
+public:
 	inline static constexpr ObjType TYPE_ID_ { ObjType::StmtBinaryExprIR };
 
 	StmtBinaryExprIR(BinaryOp op, SymbolIR* ret, ValueIR* opnd1, ValueIR* opnd2):
-		StmtIR(new TypeIntIR()),	// ????
+		StmtIR(mmpool_.make<TypeIntIR>()),
 		op_(op), result_(ret), opnd1_(opnd1), opnd2_(opnd2) {
 		SET_TYPE_ID(StmtBinaryExprIR);
 	}
 
-  public:
-	// bool isSymbolDef() const override { return true; }
+public:
 	void dump(std::ostream& os) const override {
 		os << "\t";
 		result_->dump(os);
@@ -93,37 +90,16 @@ class StmtBinaryExprIR : public StmtIR {
 		opnd2_->dump(os);
 		os << std::endl;
 	}
-
-	void gen_asm(GenASMCfg* cfg) override;
-
+	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
 	SymbolIR* get_def_var() override { return result_; }
 
+public:
+	ValueIR* get_opnd1() { return opnd1_; }
+	ValueIR* get_opnd2() { return opnd2_; }
+	auto get_op() { return op_; }
 	inline void dumpOp(std::ostream& os) const;
 
-  public:
-	Instruction* gen_asm_eq(BasicBlockASM* bb);
-	Instruction* gen_asm_ne(BasicBlockASM* bb);
-	Instruction* gen_asm_sub(BasicBlockASM* bb);
-	Instruction* gen_asm_add(BasicBlockASM* bb);
-	Instruction* gen_asm_mul(BasicBlockASM* bb);
-	Instruction* gen_asm_div(BasicBlockASM* bb);
-	Instruction* gen_asm_mod(BasicBlockASM* bb);
-	Instruction* gen_asm_lt(BasicBlockASM* bb);
-	Instruction* gen_asm_gt(BasicBlockASM* bb);
-	Instruction* gen_asm_le(BasicBlockASM* bb);
-	Instruction* gen_asm_ge(BasicBlockASM* bb);
-	Instruction* gen_asm_and(BasicBlockASM* bb);
-	Instruction* gen_asm_or(BasicBlockASM* bb);
-
-	// VarASM* i2r(BasicBlockASM* bb, uint32_t i) {
-	// 	auto* reg = bb->get_temp_var();
-	// 	bb->push_back_instr(new Instr2RI(InstrOp::LI, reg, i));
-	// 	return reg;
-	// }
-
-	// void set_ret_reg_var(VarASM* var) { result_->set_reg_var(var); }
-
-  private:
+private:
 	BinaryOp	op_		{ BinaryOp::BAD };	// operator
 	SymbolIR*	result_	{ nullptr };
 	ValueIR*	opnd1_	{ nullptr };		// operand1
@@ -216,6 +192,7 @@ public:
 		StmtIR(ty), result_(ret)
 		{ SET_TYPE_ID(AllocIR); }
 
+public:
 	bool isSymbolDef() const override { return true; }
 	void dump(std::ostream& os) const override {
 		os << '\t';
@@ -224,14 +201,11 @@ public:
 		ty_->dump(os);
 		os << std::endl;
 	}
-
-	void gen_asm(GenASMCfg* cfg) override { /* do nothing */ }
-
+	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
 	SymbolIR* get_def_var() override { return result_; }
 
 private:
 	SymbolIR*	result_	{ nullptr };
-	// TypeIR*		ty_ 	{ nullptr };
 };
 
 
@@ -239,10 +213,11 @@ class StoreIR : public StmtIR {
 public:
 	inline static constexpr ObjType TYPE_ID_ { ObjType::StoreIR };
 	StoreIR(ValueIR* src, SymbolIR* des):
-		StmtIR(new TypeUnitIR()),
+		StmtIR(mmpool_.make<TypeUnitIR>()),
 		des_(des), src_(src)
 		{ SET_TYPE_ID(StoreIR); }
 
+public:
 	bool isStore() const override { return true; }
 	void dump(std::ostream& os) const override {
 		os << '\t';
@@ -252,10 +227,11 @@ public:
 		des_->dump(os);
 		os << std::endl;
 	}
+	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
 
-	void gen_asm(GenASMCfg* cfg) override;
-
-	SymbolIR* get_def_var() override { return nullptr; }
+public:
+	SymbolIR* get_des() { return des_; }
+	ValueIR* get_src() { return src_; }
 
 private:
 	SymbolIR*	des_	{ nullptr };
@@ -271,6 +247,7 @@ public:
 		des_(des), src_(src)
 		{ SET_TYPE_ID(LoadIR); }
 
+public:
 	bool isStore() const override { return true; }
 	void dump(std::ostream& os) const override {
 		os << '\t';
@@ -279,10 +256,12 @@ public:
 		src_->dump(os);
 		os << std::endl;
 	}
-
-	void gen_asm(GenASMCfg* cfg) override;
-
+	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
 	SymbolIR* get_def_var() override { return des_; }
+
+public:
+	SymbolIR* get_des() { return des_; }
+	ValueIR* get_src() { return src_; }
 
 private:
 	SymbolIR*	des_	{ nullptr };

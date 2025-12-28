@@ -1,45 +1,36 @@
 #pragma once
 
 #include "BaseIR.hh"
-#include "BlockIR.hh"
-#include "ValueIR.hh"
-// #include "../asm/cfg.hh"
+#include "TypeIR.hh"
 
-#include <cstdint>
 #include <string>
 #include <vector>
+#include "unordered_map"
 
 
 class FunctionIR : public IRBase {
-  public:
+public:
 	inline static constexpr ObjType TYPE_ID_ { ObjType::FunctionIR };
-
 	FunctionIR(SymbolIR* funcSym, TypeFuncIR* ty): IRBase(ty), sym_(funcSym) { SET_TYPE_ID(FunctionIR); }
 
-  public:
+public:
 	void dump(std::ostream& os) const override;
+	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
 
-  public:
-	void appendBB(BlockIR* bb) { bbs_.push_back(bb); }
+public:
+	void add_BB(BlockIR* bb) { bbs_.push_back(bb); }
+	auto& get_BBs() { return bbs_; }
 
-	SymbolIR* getATmpSymbol(TypeIR* ty) {
-		auto tmpSym = std::string("t") + std::to_string(tmpVars.size());
-		auto* sym = SymbolIR::create_named_var(tmpSym, ty, true);
-		tmpVars.push_back(sym);
-		return sym;
-	}
+	SymbolIR* get_tmp_var(TypeIR* ty);
 
-	SymbolIR* getSym() { return sym_; }
-	std::string getFuncName() { return sym_->getSym(); }
+	void add_var(std::string sym, SymbolIR* var) { symTab_[sym] = var; }
+	SymbolIR* get_var(std::string sym) { return symTab_.at(sym); }
 
-	void gen_asm(GenASMCfg* cfg) override;
-	void gen_asm_prologue(BasicBlockASM* bb);
-	void gen_asm_epilogue(BasicBlockASM* bb);
+	std::string get_func_name();
 
-  private:
-	std::vector<BlockIR*> bbs_;
+private:
 	SymbolIR* sym_ { nullptr };
-	uint32_t stackSize_ { 0 };
-
-	std::vector<SymbolIR*> tmpVars;
+	std::vector<BlockIR*> bbs_;
+	unsigned long tmpVarCount_ { 0 };
+	std::unordered_map<std::string, SymbolIR*> symTab_;
 };

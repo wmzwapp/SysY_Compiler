@@ -1,47 +1,64 @@
 #pragma once
 
 #include "common/utils.hh"
-#include "ir/BlockIR.hh"
-#include "ir/FunctionIR.hh"
-#include "ir/ProgramIR.hh"
-#include "ir/ValueIR.hh"
+#include "common/mmp.hh"
+#include <string>
+#include <sstream>
+#include <unordered_map>
 #include <variant>
 
 
 using tyI32 = int;
 
-class GenIRCfg {
-	ProgramIR*	curProgram_ { nullptr };
-	FunctionIR*	curFunc_	{ nullptr };
-	BlockIR*	curBlock_	{ nullptr };
-	ValueIR*	curValue_	{ nullptr };
+class BaseAST; 
+class CompUnitAST;
+class FuncDefAST;
+class BlockAST;
+class BlockItemAST;
+class DeclAST;
+class StmtAST;
+class ExpAST;
+class VarAST;
+class NumberAST;
+struct OpAST;
 
-  public:
-	ProgramIR* get_current_programIR() { return curProgram_; }
-	void set_current_programIR(ProgramIR* ir) { curProgram_ = ir; }
+extern MArena mmpool_;
 
-	FunctionIR*	get_current_functionIR() { return curFunc_; }
-	void set_current_functionIR(FunctionIR* ir) { curFunc_ = ir; }
-
-	BlockIR* get_current_blockIR() { return curBlock_; }
-	void set_current_blockIR(BlockIR* ir) { curBlock_ = ir; }
-
-	ValueIR* get_current_value() { return curValue_; }
-	void set_current_value(ValueIR* ir) { curValue_ = ir; }
+struct AstVisitorContext {
+	// empty
 };
 
+using VCtx = AstVisitorContext;
+
+class AstVisitor {
+  public:
+	virtual void visit(CompUnitAST* unit, VCtx* ctx);
+	virtual void visit(FuncDefAST* func, VCtx* ctx);
+	virtual void visit(BlockAST* block, VCtx* ctx);
+	virtual void visit(BlockItemAST* blockItem, VCtx* ctx);
+	virtual void visit(DeclAST* decl, VCtx* ctx);
+	virtual void visit(StmtAST* stmt, VCtx* ctx);
+	virtual void visit(ExpAST* expr, VCtx* ctx);
+	virtual void visit(VarAST* var, VCtx* ctx);
+	virtual void visit(NumberAST* num, VCtx* ctx);
+};
 
 class BaseAST {
 	ObjType type_;
-  public:
+public:
 	virtual ~BaseAST() = default;
 
 	void set_type_id(ObjType t) { type_ = t; }
 	ObjType get_type_id() { return type_; }
 
-  public:
-	virtual void Dump() const = 0;
-	virtual void gen_ir(GenIRCfg* cfg) = 0;
+public:
+	virtual void Dump(std::ostream& os) const = 0;
+	virtual std::string repr() const {
+		std::stringstream ss;
+		Dump(ss);
+		return ss.str();
+	}
+	virtual void accept(AstVisitor* v, VCtx* ctx) = 0;
 };
 
 
@@ -50,34 +67,40 @@ struct symTableValue {
 	bool is_var() const { return v_.index() == 1; }
 
 	tyI32 get_const() { return std::get<0>(v_); }
-	void* get_var() { return std::get<1>(v_); }
+	VarAST* get_var() { return std::get<1>(v_); }
 
-	std::variant<tyI32, void*> v_;
+	std::variant<tyI32, VarAST*> v_;
 };
 
 
 class SymTabAST {
   public:
 	void add_sym(std::string sym, tyI32 val) { table_[sym] = {val}; }
-	void add_sym(std::string sym, void* alloc) { table_[sym] = {alloc}; }
+	void add_sym(std::string sym, VarAST* var) { table_[sym] = {var}; }
+	void remove_sym(std::string sym) { table_.erase(sym); }
 
 	bool has_sym(std::string sym) { return table_.find(sym) != table_.end(); }
+	bool is_const(std::string sym) { return table_.at(sym).is_const(); }
+	bool is_lval(std::string sym) { return table_.at(sym).is_var(); }
 
-	symTableValue& get_sym(std::string sym) { return table_.at(sym); }
-
-	tyI32 get_const_val(std::string sym) { return table_.at(sym).get_const(); }
-	void* get_var_alloc(std::string sym) { return table_.at(sym).get_var(); }
-
-	static SymTabAST* get_tab() {
-		static SymTabAST inst;
-		return &inst;
-	};
-
-  private:
-	SymTabAST() {}
+	int get_const_val(std::string sym) { return table_.at(sym).get_const(); }
+	VarAST* get_var(std::string sym) { return table_.at(sym).get_var(); }
 
   private:
 	std::unordered_map<std::string, symTableValue> table_;
 };
 
-inline SymTabAST &gSymTable_ = *SymTabAST::get_tab(); 
+
+class ASTCheckFailed : public std::exception {
+  public:
+	explicit ASTCheckFailed(const std::string& msg) : msg_(msg) {}
+	ASTCheckFailed(const char* fmrstr, ...);
+
+	const char* what() const noexcept override {
+		return msg_.c_str();
+	}
+
+  private:
+	std::string msg_;
+};
+

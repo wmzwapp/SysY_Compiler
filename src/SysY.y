@@ -28,6 +28,9 @@ void yyerror(BaseAST *ast, const char* fmt, ...);
 
 using namespace std;
 
+extern CompUnitAST __AST_TOP__;
+extern MArena mmpool_;
+
 %}
 
 %debug
@@ -42,9 +45,9 @@ using namespace std;
     char*                       str_val;
     int                         int_val;
     BaseAST*                    ast_val;
-    std::vector<BlockItemAST*>* ast_block_items;
-    std::vector<ConstDefAST*>*  ast_const_defs;
-    std::vector<VarDefAST*>*    ast_var_defs;
+    varDefAST*                  var_def;
+    ExpAST*                     exp_val;
+    std::vector<varDefAST*>*    var_def_v;
 }
 
 // lexer 返回的所有 token 种类的声明
@@ -54,14 +57,17 @@ using namespace std;
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <int_val> Number
-%type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp UnaryExp
-%type <ast_val> AddExp MulExp RelExp EqExp LAndExp LOrExp
-%type <ast_val> Decl ConstDecl BType ConstDef ConstInitVal BlockItem LVal ConstExp
-%type <ast_val> VarDecl VarDef InitVal
-%type <ast_block_items> BlockItemList
-%type <ast_const_defs>  ConstDefList
-%type <ast_var_defs>    VarDefList
+%type <ast_val> FuncDef FuncType Block Stmt Decl
+%type <ast_val> BlockItemList BlockItem
+%type <ast_val> BType LVal Number
+
+%type <exp_val> Exp ConstInitVal InitVal ConstExp
+%type <exp_val> UnaryExp AddExp MulExp RelExp EqExp LAndExp LOrExp PrimaryExp
+
+%type <var_def> ConstDef VarDef
+%type <var_def_v>  ConstDecl ConstDefList VarDecl VarDefList
+
+
 %type <str_val> UnaryOp BinaryOp1 BinaryOp2 BinaryOp3 BinaryOp4
 
 %%
@@ -73,8 +79,7 @@ using namespace std;
 // $1 指代规则里第一个符号的返回值, 也就是 FuncDef 的返回值
 CompUnit
     : FuncDef {
-        ast = new CompUnitAST();
-        ((CompUnitAST*)ast)->setFuncDefAST($1);
+        __AST_TOP__.setFuncDefAST($1);
     }
     ;
 
@@ -84,7 +89,7 @@ CompUnit
 // $$ 表示非终结符的返回值, 我们可以通过给这个符号赋值的方法来返回结果
 FuncDef
     : FuncType IDENT '(' ')' Block {
-        auto* ast = new FuncDefAST($2, $5);
+        auto* ast = mmpool_.make<FuncDefAST>($2, $5);
         free((void*)$2);
         $$ = ast;
     }
@@ -93,57 +98,61 @@ FuncDef
 // 同上, 不再解释
 FuncType
     : INT {
-        /*
-        auto* ast = new FuncTypeAST();
-        ast->setFuncTypeStr("int");
-        $$ = ast;
-        */
+        // empty
     }
     ;
 
 Block
     : '{' BlockItemList '}' {
-        auto* ast = new BlockAST($2);
-        $$ = ast;
+        $$ = $2;
     }
     ;
 
 BlockItemList
     : /* empty */ {
-        $$ = new std::vector<BlockItemAST*>();
+        $$ = mmpool_.make<BlockAST>();
     }
     | BlockItemList BlockItem {
-        $1->push_back((BlockItemAST*)$2);
+        if ($2 != nullptr) {
+            ((BlockAST*)$1)->add_item((BlockItemAST*)$2);
+        }
         $$ = $1;
     }
 
 BlockItem
     : Decl {
-        auto* ast = new BlockItemAST($1);
+        auto* ast = mmpool_.make<BlockItemAST>($1);
         $$ = ast;
     }
     | Stmt {
-        auto* ast = new BlockItemAST($1);
-        $$ = ast;
+        if ($1 != nullptr) {
+            auto* ast = mmpool_.make<BlockItemAST>($1);
+            $$ = ast;
+        } else {
+            $$ = nullptr;
+        }
     }
     ;
 
 Decl
     : ConstDecl {
-        auto* ast = new DeclAST();
-        ast->set_const_decl($1);
+        auto* ast = mmpool_.make<DeclAST>($1);
+        delete $1;
         $$ = ast;
     }
     | VarDecl {
-        auto* ast = new DeclAST();
-        ast->set_var_decl($1);
+        auto* ast = mmpool_.make<DeclAST>($1);
+        delete $1;
         $$ = ast;
     }
     ;
 
 ConstDecl
     : CONST BType ConstDefList ';' {
-        $$ = new ConstDeclAST($3);
+        for (auto* def : *$3) {
+            def->isConst_ = true;
+        }
+        $$ = $3;
     }
     ;
 
@@ -155,158 +164,153 @@ BType
 
 ConstDefList
     : ConstDef {
-        $$ = new std::vector<ConstDefAST*>();
-        $$->push_back((ConstDefAST*)$1);
+        $$ = new std::vector<varDefAST*>;
+        $$->push_back($1);
     }
     | ConstDefList ',' ConstDef {
-        $1->push_back((ConstDefAST*)$3);
+        $1->push_back($3);
         $$ = $1;
     }
 
 ConstDef
     : IDENT '=' ConstInitVal {
-        $$ = new ConstDefAST($1, $3);
-        tyI32 initval;
-        try {
-            initval = ((ConstInitValAST*)$3)->eval();
-        } catch (const ASTExpEvalFailed& e) {
-            yyerror($3, "Not a constant expression.\n");
+        auto* vardef = mmpool_.make<varDefAST>();
+        vardef->var_ = mmpool_.make<VarAST>($1);
+        if ($3 == nullptr) {
+            yyerror(nullptr, "The constant definition lacks an initialization expression.");
             free((void*)$1);
-            delete $$;
             YYABORT;
         }
-        gSymTable_.add_sym($1, initval);
+        vardef->initExp_ = $3;
+        $$ = vardef;
         free((void*)$1);
     }
     ;
 
 ConstInitVal
     : ConstExp {
-        $$ = new ConstInitValAST($1);
+        $$ = $1;
     }
     ;
 
 VarDecl
     : BType VarDefList ';' {
-        $$ = new VarDeclAST($2);
+        $$ = $2;
     }
     ;
 
 VarDefList
     : VarDef {
-        $$ = new std::vector<VarDefAST*>();
-        $$->push_back((VarDefAST*)$1);
+        $$ = new std::vector<varDefAST*>;
+        $$->push_back($1);
     }
     | VarDefList ',' VarDef {
-        $1->push_back((VarDefAST*)$3);
+        $1->push_back($3);
         $$ = $1;
     }
     ;
 
 VarDef
     : IDENT {
-        if (gSymTable_.has_sym($1)) {
-            yyerror(nullptr, "Re-definition of symbol '%s'.\n", $1);
-            free((void*)$1);
-            YYABORT;
-        }
-        gSymTable_.add_sym($1, nullptr);
-        $$ = new VarDefAST($1);
+        auto* vardef = mmpool_.make<varDefAST>();
+        vardef->var_ = mmpool_.make<VarAST>($1);
+        $$ = vardef;
         free((void*)$1);
     }
     | IDENT '=' InitVal {
-        if (gSymTable_.has_sym($1)) {
-            yyerror(nullptr, "Re-definition of symbol '%s'.\n", $1);
-            free((void*)$1);
-            YYABORT;
-        }
-        gSymTable_.add_sym($1, nullptr);
-        $$ = new VarDefAST($1, $3);
+        auto* vardef = mmpool_.make<varDefAST>();
+        vardef->var_ = mmpool_.make<VarAST>($1);
+        vardef->initExp_ = $3;
+        $$ = vardef;
         free((void*)$1);
     }
     ;
 
 InitVal
     : Exp {
-        $$ = new InitValAST($1);
+        $$ = $1;
     }
     ;
 
 Stmt
     : RETURN Exp ';' {
-        auto *ast = new StmtAST();
-        ast->setRetExp($2);
-        $$ = ast;
+        auto *stmt = mmpool_.make<StmtAST>();
+        stmt->setRetExp($2);
+        $$ = stmt;
+    }
+    | RETURN ';' {
+        auto *stmt = mmpool_.make<StmtAST>();
+        stmt->setRetExp(nullptr);
+        $$ = stmt;
     }
     | LVal '=' Exp ';' {
-        auto sym = ((LValAST*)$1)->repr();
-        if (auto& v = gSymTable_.get_sym(sym); v.is_const()) {
-            yyerror(nullptr, "Error: constant as lValue '%s'.", sym.c_str());
-            free((void*)$1);
-            YYABORT;
-        }
-        auto *ast = new StmtAST();
-        ast->setAssignExp($1, $3);
-        $$ = ast;
+        auto *stmt = mmpool_.make<StmtAST>();
+        stmt->setAssignExp($1, $3);
+        $$ = stmt;
+    }
+    | Block {
+        auto* stmt = mmpool_.make<StmtAST>();
+        stmt->setBlock($1);
+        $$ = stmt;
+    }
+    | Exp ';' {
+        auto* stmt = mmpool_.make<StmtAST>();
+        stmt->setExp($1);
+        $$ = stmt;
+    }
+    | ';' {
+        // empty
+        $$ = nullptr;
     }
     ;
 
 Exp
     : LOrExp {
-        auto* ast = new ExpAST();
-        ast->set_exp($1);
-        $$ = ast;
+        $$ = $1;
     }
     ;
 
 LVal
     : IDENT {
-        if (!gSymTable_.has_sym($1)) {
-            yyerror(nullptr, "Error: undefined symbol '%s'.", $1);
-            free((void*)$1);
-            YYABORT;
-        }
-        $$ = new LValAST($1);
+        $$ = mmpool_.make<VarAST>($1);
         free((void*)$1);
     }
     ;
 
 PrimaryExp
     : '(' Exp ')' {
-        auto* ast = new PrimaryExpAST();
-        ast->setExp($2);
-        $$ = ast;
+        $$ = $2;
     }
     | Number {
-        auto* ast = new PrimaryExpAST();
-        ast->setNumber($1);
-        $$ = ast;
+        auto* exp = mmpool_.make<ExpAST>();
+        exp->set_num((NumberAST*)$1);
+        $$ = exp;
     }
     | LVal {
-        auto* ast = new PrimaryExpAST();
-        ast->setLval($1);
-        $$ = ast;
+        auto* exp = mmpool_.make<ExpAST>();
+        exp->set_lval((VarAST*)$1);
+        $$ = exp;
     }
     ;
 
 Number
     : INT_CONST {
-        $$ = $1;
+        $$ = mmpool_.make<NumberAST>($1);
     }
     ;
 
 UnaryExp
     : PrimaryExp {
-        auto* ast = new UnaryExpAST();
-        ast->setPrimaryExp($1);
-        $$ = ast;
+        $$ = $1;
     }
     | UnaryOp UnaryExp {
-        auto* ast = new UnaryExpAST();
-        ast->setUnaryOp($1);
-        ast->setUnaryExp($2);
+        auto* exp = mmpool_.make<ExpAST>();
+        OpAST opast;
+        OpAST::set_op_ast($1, opast);
+        exp->set_exp(nullptr, opast, (ExpAST*)$2);
+        $$ = exp;
+
         free((void*)$1);
-        $$ = ast;
     }
     ;
 
@@ -327,109 +331,97 @@ BinaryOp4
 
 AddExp
     : MulExp {
-        auto* ast = BinaryExpAST::create_add_exp();
-        assert(is_exp_family($1));
-        ast->set_other_exp($1);
-        $$ = ast;
+        $$ = $1;
     }
     | AddExp BinaryOp1 MulExp {
-        auto* ast = BinaryExpAST::create_add_exp();
-        ast->set_binary_opnd1($1);
-        ast->set_binary_op($2);
-        ast->set_binary_opnd2($3);
+        auto* exp = mmpool_.make<ExpAST>();
+        OpAST opast;
+        OpAST::set_op_ast($2, opast);
+        exp->set_exp((ExpAST*)$1, opast, (ExpAST*)$3);
+        $$ = exp;
+
         free((void*)$2);
-        $$ = ast;
     }
     ;
 
 MulExp
     : UnaryExp {
-        auto* ast = BinaryExpAST::create_mul_exp();
-        assert(is_exp_family($1));
-        ast->set_other_exp($1);
-        $$ = ast;
+        $$ = $1;
     }
     | MulExp BinaryOp2 UnaryExp {
-        auto* ast = BinaryExpAST::create_mul_exp();
-        ast->set_binary_opnd1($1);
-        ast->set_binary_op($2);
-        ast->set_binary_opnd2($3);
+        auto* exp = mmpool_.make<ExpAST>();
+        OpAST opast;
+        OpAST::set_op_ast($2, opast);
+        exp->set_exp((ExpAST*)$1, opast, (ExpAST*)$3);
+        $$ = exp;
+
         free((void*)$2);
-        $$ = ast;
     }
     ;
 
 RelExp
     : AddExp {
-        auto* ast = BinaryExpAST::create_rel_exp();
-        assert(is_exp_family($1));
-        ast->set_other_exp($1);
-        $$ = ast;
+        $$ = $1;
     }
     | RelExp BinaryOp3 AddExp {
-        auto* ast = BinaryExpAST::create_rel_exp();
-        ast->set_binary_opnd1($1);
-        ast->set_binary_op($2);
-        ast->set_binary_opnd2($3);
+        auto* exp = mmpool_.make<ExpAST>();
+        OpAST opast;
+        OpAST::set_op_ast($2, opast);
+        exp->set_exp((ExpAST*)$1, opast, (ExpAST*)$3);
+        $$ = exp;
+
         free((void*)$2);
-        $$ = ast;
     }
     ;
 
 EqExp
     : RelExp {
-        auto* ast = BinaryExpAST::create_eq_exp();
-        assert(is_exp_family($1));
-        ast->set_other_exp($1);
-        $$ = ast;
+        $$ = $1;
     }
     | EqExp BinaryOp4 RelExp {
-        auto* ast = BinaryExpAST::create_eq_exp();
-        ast->set_binary_opnd1($1);
-        ast->set_binary_op($2);
-        ast->set_binary_opnd2($3);
+        auto* exp = mmpool_.make<ExpAST>();
+        OpAST opast;
+        OpAST::set_op_ast($2, opast);
+        exp->set_exp((ExpAST*)$1, opast, (ExpAST*)$3);
+        $$ = exp;
+
         free((void*)$2);
-        $$ = ast;
     }
     ;
 
 LAndExp
     : EqExp {
-        auto* ast = BinaryExpAST::create_land_exp();
-        assert(is_exp_family($1));
-        ast->set_other_exp($1);
-        $$ = ast;
+        $$ = $1;
     }
     | LAndExp LAND EqExp {
-        auto* ast = BinaryExpAST::create_land_exp();
-        ast->set_binary_opnd1($1);
-        ast->set_binary_op($2);
-        ast->set_binary_opnd2($3);
+        auto* exp = mmpool_.make<ExpAST>();
+        OpAST opast;
+        OpAST::set_op_ast($2, opast);
+        exp->set_exp((ExpAST*)$1, opast, (ExpAST*)$3);
+        $$ = exp;
+
         free((void*)$2);
-        $$ = ast;
     }
     ;
 
 LOrExp
     : LAndExp {
-        auto* ast = BinaryExpAST::create_lor_exp();
-        assert(is_exp_family($1));
-        ast->set_other_exp($1);
-        $$ = ast;
+        $$ = $1;
     }
     | LOrExp LOR LAndExp {
-        auto* ast = BinaryExpAST::create_lor_exp();
-        ast->set_binary_opnd1($1);
-        ast->set_binary_op($2);
-        ast->set_binary_opnd2($3);
+        auto* exp = mmpool_.make<ExpAST>();
+        OpAST opast;
+        OpAST::set_op_ast($2, opast);
+        exp->set_exp((ExpAST*)$1, opast, (ExpAST*)$3);
+        $$ = exp;
+
         free((void*)$2);
-        $$ = ast;
     }
     ;
 
 ConstExp
     : Exp {
-        $$ = new ConstExpAST($1);
+        $$ = $1;
     }
     ;
 

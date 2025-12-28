@@ -7,40 +7,20 @@
 enum class ObjType : uint32_t {
     /* AST begin */
 	BaseAST,
+	FuncDefAST,
 	BlockAST,
 	BlockItemAST,
 	DeclAST,
 	StmtAST,
-	ConstDeclAST,
-	BTypeAST,
-	ConstDefAST,
-	ConstInitValAST,
-	VarDeclAST,
-	VarDefAST,
-	InitValAST,
-
 	ExpAST,
-	PrimaryExpAST,
-	UnaryExpAST,
-    MulExpAST,
-	AddExpAST,
-	RelExpAST,
-	EqExpAST,
-	LAndExpAST,
-	LOrExpAST,
-	ConstExpAST,
-	ExpASTEnd,
-
+	NumberAST,
+	VarAST,
     /* AST end */
 
     /* IR begin */
 	IRBase,
-
-	// value
 	ValueIntIR,
 	SymbolIR,
-
-	// entity
 	ProgramIR,
 	FunctionIR,
 	BlockIR,
@@ -88,15 +68,15 @@ inline bool isa(OBJ_T obj) {
 	}
 }
 
-template<mytype T>
-inline bool is_exp_family(T&& obj) {
-	using U = std::remove_reference_t<T>;
-	if constexpr (std::is_pointer_v<U>) {
-		if (!obj) return false;
-		const auto id = obj->get_type_id();
-		return id > ObjType::ExpAST && id < ObjType::ExpASTEnd;
-	} else {
-		const auto id = obj.get_type_id();
-		return id > ObjType::ExpAST && id < ObjType::ExpASTEnd;
-	}
-}
+// template<mytype T>
+// inline bool is_exp_family(T&& obj) {
+// 	using U = std::remove_reference_t<T>;
+// 	if constexpr (std::is_pointer_v<U>) {
+// 		if (!obj) return false;
+// 		const auto id = obj->get_type_id();
+// 		return id > ObjType::ExpAST && id < ObjType::ExpASTEnd;
+// 	} else {
+// 		const auto id = obj.get_type_id();
+// 		return id > ObjType::ExpAST && id < ObjType::ExpASTEnd;
+// 	}
+// }

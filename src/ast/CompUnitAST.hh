@@ -1,27 +1,23 @@
 #pragma once
 
 #include "BaseAST.hh"
-#include "FuncDefAST.hh"
 
+class FuncDefAST;
 
 /*
 	CompUnit ::= FuncDef;
 */
 class CompUnitAST : public BaseAST {
   public:
-	~CompUnitAST() override { delete funcDef_; }
-
-	void Dump() const override {
-		std::cout << "<CompUnit> { ";
-		funcDef_->Dump();
-		std::cout << " }";
-	}
-
-	void gen_ir(GenIRCfg* cfg) override { funcDef_->gen_ir(cfg); }
+	void Dump(std::ostream& os) const override;
+	void accept(AstVisitor* v, VCtx* ctx) override { v->visit(this, ctx); }
 
   public:
 	void setFuncDefAST(BaseAST* ast) { funcDef_ = (FuncDefAST*)ast; }
+	FuncDefAST* get_func_def() { return funcDef_; }
 
-private:
+  private:
 	FuncDefAST* funcDef_ { nullptr };
 };
+
+inline CompUnitAST __AST_TOP__;

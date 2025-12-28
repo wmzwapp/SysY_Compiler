@@ -1,57 +1,72 @@
 #pragma once
 
-#include "ast/BaseAST.hh"
-#include "ir/TypeIR.hh"
+#include "BaseAST.hh"
 
 #include <string>
 #include <iostream>
 
 
+class TypeIR;
+class SymbolIR;
+
 /*
     FuncType        ::= "int";
-	BType			::= "int"
+	BType			::= "int";
 */
 class TypeAST {
 public:
-    void repr() const { std::cout << "<Type>int"; }
-
-    std::string get_ty_str() { return "int"; }
-
-    static TypeIntIR* get_int_type_ir() { return new TypeIntIR(); }
-    static TypePtrIR* get_int_ptr_type_ir() { return new TypePtrIR(new TypeIntIR()); }
-    static TypeUnitIR* get_unit_type_ir() { return new TypeUnitIR(); }
-    static TypeFuncIR* get_func_type_ir() { return new TypeFuncIR(); }
+	void Dump(std::ostream& os) const { os << "<Type>int"; }
+	std::string repr() const { return "int"; }
+	TypeIR* get_ty_IR();
 };
 
 
 /*
 	FuncDef         ::= FuncType IDENT "(" ")" Block;
-	ConstDecl		::= "const" BType ConstDef {"," ConstDef} ";"
-    ConstDef		::= IDENT "=" ConstInitVal
-    VarDef          ::= IDENT | IDENT "=" InitVal
+	ConstDecl		::= "const" BType ConstDef {"," ConstDef} ";";
+    ConstDef		::= IDENT "=" ConstInitVal;
+    VarDef          ::= IDENT | IDENT "=" InitVal;
+    LVal			::= IDENT;
+    Stmt            ::= LVal "=" Exp ";";
 */
-class VarAST {
+class VarAST : public BaseAST {
 public:
-    VarAST(const char* ident) { ident_ = ident; }
+	STATIC_TYPE_ID_DECL(VarAST);
+	VarAST(const char* ident) : ident_(ident) { SET_TYPE_ID(VarAST); }
 
 public:
-    void repr() const { std::cout << "<IDENT>" << ident_; }
+	void Dump(std::ostream& os) const override { os << "<IDENT>" << ident_; }
+	std::string repr() const override { return ident_; }
+	void accept(AstVisitor* v, VCtx* ctx) override { v->visit(this, ctx); }
 
-    const char* get_ident() const { return ident_.c_str(); }
+public:
+	void set_ident(std::string ident) { ident_ = ident; }
+
+	void set_IR_var(SymbolIR* var) { IRVar_ = var; }
+	SymbolIR* get_IR_var() { return IRVar_; }
 
 private:
-    std::string ident_;
+	std::string ident_;
+	SymbolIR* IRVar_ { nullptr};
 };
 
 /*
 	Number ::= INT_CONST
 */
-class NumberAST {
-  public:
-    NumberAST(tyI32 val): val_(val) {}
-	void repr() const { std::cout << "<Number>" << val_; }
+class NumberAST : public BaseAST {
+public:
+	STATIC_TYPE_ID_DECL(NumberAST);
+	NumberAST(tyI32 val): val_(val) { SET_TYPE_ID(NumberAST); }
 
-  public:
+public:
+	void Dump(std::ostream& os) const override { os << "<Number>" << val_; }
+	std::string repr() const override { return std::to_string(val_); }
+	void accept(AstVisitor* v, VCtx* ctx) override { v->visit(this, ctx); }	
+
+public:
+	int get_val() const { return val_; }
+
+private:
 	int val_{ 0 };
 };
 

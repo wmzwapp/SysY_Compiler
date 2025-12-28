@@ -34,13 +34,13 @@ enum class InstrOp {
 
 
 class Instruction {
-  public:
+public:
 	Instruction() {
 		static uint64_t count_ {0};
 		debugId_ = count_++;
 	}
 
-  public:
+public:
 	virtual VarASM* get_ret() { return nullptr; }
 	virtual void dump(std::ostream& os) = 0;
 	std::string p() { std::stringstream ss; dump(ss); return ss.str(); }
@@ -50,7 +50,7 @@ class Instruction {
 
 	inline std::string_view dumpOp(InstrOp op);
 
-  private:
+private:
 	Instruction*	prev_ { nullptr };
 	Instruction*	next_ { nullptr };
 	uint64_t		debugId_;
@@ -70,7 +70,7 @@ class Instr0 : public Instruction {
 
 template<typename T1>
 class Instr2 : public Instruction {
-  public:
+public:
 	Instr2(InstrOp op, VarASM* ret, T1 opnd):
 		Instruction(), op_(op), ret_(ret), opnd1_(opnd) {}
 
@@ -88,7 +88,7 @@ class Instr2 : public Instruction {
 
 	VarASM* get_ret() override { return ret_; }
 
-  private:
+private:
 	InstrOp     op_;
 	VarASM*     ret_;
 	T1          opnd1_;
@@ -97,10 +97,11 @@ class Instr2 : public Instruction {
 
 template<typename T1, typename T2>
 class Instr3: public Instruction {
-  public:
+public:
 	Instr3(InstrOp op, VarASM* ret, T1 opnd1, T2 opnd2):
 		Instruction(), op_(op), ret_(ret), opnd1_(opnd1), opnd2_(opnd2) {}
 
+public:
 	void dump(std::ostream& os) override {
 		os << std::left;
 		os << std::setw(7) << dumpOp(op_);
@@ -123,7 +124,7 @@ class Instr3: public Instruction {
 
 	VarASM* get_ret() override { return ret_; }
 
-  private:
+private:
 	InstrOp     op_;
 	VarASM*     ret_;
 	T1          opnd1_;

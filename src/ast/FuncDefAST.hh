@@ -1,27 +1,31 @@
 #pragma once
 
 #include "BaseAST.hh"
-#include "BlockAST.hh"
 #include "VarAST.hh"
 
+
+class BlockAST;
 
 /*
 	FuncDef ::= FuncType IDENT "(" ")" Block;
 */
 class FuncDefAST : public BaseAST {
-  public:
-  FuncDefAST(const char* ident, BaseAST* block): ident_(ident), block_((BlockAST*)block) {}
-	~FuncDefAST() override { delete block_; }
+public:
+  	STATIC_TYPE_ID_DECL(FuncDefAST);
+	FuncDefAST(const char* ident, BaseAST* block)
+		: ident_(ident), block_((BlockAST*)block)
+		{ SET_TYPE_ID(FuncDefAST); }
 
-	void Dump() const override;
-	void gen_ir(GenIRCfg* cfg) override;
+public:
+	void Dump(std::ostream& os) const override;
+	void accept(AstVisitor* v, VCtx* ctx) override { v->visit(this, ctx); }
 
-  public:
-	// void setFuncTypeAST() { funcType_ = new TypeAST(); }
-	// void setIdent(const char *s) { ident_ = new VarAST(s); }
-	// void setBlockAST(BaseAST* ast) { block_ = (BlockAST*)ast; }
+public:
+	BlockAST* get_block() { return block_; }
+	VarAST* get_ident() { return &ident_; }
+	TypeAST* get_ret_type() { return &funcType_; }
 
-  private:
+private:
 	TypeAST		funcType_;
 	VarAST		ident_;
 	BlockAST*	block_		{ nullptr };

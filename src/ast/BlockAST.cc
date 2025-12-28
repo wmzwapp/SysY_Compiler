@@ -1,37 +1,18 @@
 #include "BlockAST.hh"
-#include "ast/BaseAST.hh"
-#include "ir/BlockIR.hh"
+#include "BaseAST.hh"
+#include "StmtAST.hh"
 
 #include <iostream>
 
 
 /* class BlockAST */
-BlockAST::~BlockAST() {
-    for (auto* v : items_) {
-        delete v;
-    }
-}
-
-
-void BlockAST::Dump() const {
-    std::cout << "<Block> {\n";
+void BlockAST::Dump(std::ostream& os) const {
+    os << "<Block> {\n";
     for (auto* item : items_) {
-        item->Dump();
-        std::cout << std::endl;
+        item->Dump(os);
+        os << std::endl;
     }
-    std::cout << " }";
-}
-
-
-void BlockAST::gen_ir(GenIRCfg* cfg) {
-    //
-    auto* bb = new BlockIR("entry");
-    cfg->get_current_functionIR()->appendBB(bb);
-    cfg->set_current_blockIR(bb);
-
-    for (auto* item : items_) {
-        item->gen_ir(cfg);
-    }
+    os << " }";
 }
 
 /* class BlockAST end */
@@ -48,35 +29,18 @@ BlockItemAST::BlockItemAST(BaseAST* ast) {
     }
 }
 
-BlockItemAST::~BlockItemAST() {
+void BlockItemAST::Dump(std::ostream& os) const {
+    os << "<BlockItem> { ";
     if (is_decl()) {
-        delete get_decl_ast();
+        os << "<Decl> { ";
+        std::get<0>(item_)->Dump(os);
+        os << " }";
     } else if (is_stmt()) {
-        delete get_stmt_ast();
+        os << "<Stmt> { ";
+        std::get<1>(item_)->Dump(os);
+        os << " }";
     }
-}
-
-void BlockItemAST::Dump() const {
-    std::cout << "<BlockItem> { ";
-    if (is_decl()) {
-        std::cout << "<Decl> { ";
-        std::get<0>(item_)->Dump();
-        std::cout << " }";
-    } else if (is_stmt()) {
-        std::cout << "<Stmt> { ";
-        std::get<1>(item_)->Dump();
-        std::cout << " }";
-    }
-    std::cout << " }";
-}
-
-void BlockItemAST::gen_ir(GenIRCfg* cfg) {
-    if (is_decl()) {
-        // do nothing
-        std::get<0>(item_)->gen_ir(cfg);
-    } else if (is_stmt()) {
-        std::get<1>(item_)->gen_ir(cfg);
-    }
+    os << " }";
 }
 
 /* class BlockItemAST end */

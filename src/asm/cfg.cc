@@ -1,5 +1,5 @@
 #include "cfg.hh"
-#include <ostream>
+#include "instr.hh"
 
 void TOPASM::dump(std::ostream& os) {
     os << ".text\n";
@@ -11,23 +11,8 @@ void TOPASM::dump(std::ostream& os) {
     }
 }
 
-
 std::string FuncASM::get_entry_label() {
     return bbs_.front()->get_label();
-}
-
-
-FuncASM* TOPASM::create_func(std::string funcName) {
-    auto* func = new FuncASM(funcName);
-    funcs_.push_back(func);
-    return func;
-}
-
-
-FuncASM::FuncASM(std::string sym) {
-    auto* entryBB = new BasicBlockASM(sym);
-    bbs_.push_back(entryBB);
-    curbb_ = entryBB;
 }
 
 void FuncASM::dump(std::ostream& os) {
@@ -36,17 +21,20 @@ void FuncASM::dump(std::ostream& os) {
     }
 }
 
-
-BasicBlockASM* FuncASM::create_bb() {
-    auto* newBB = new BasicBlockASM(std::to_string(bbs_.size()));
-    bbs_.push_back(newBB);
-    curbb_ = newBB;
-    return newBB;
+void BasicBlockASM::push_back_instr(Instruction* instr) {
+    if (currentInstr_ != nullptr) {
+        currentInstr_->setNext(instr);
+        instr->setPrev(currentInstr_);
+    } else {
+        instr->setPrev(nullptr);
+    }
+    instr->setNext(nullptr);
+    instrs_.push_back(instr);
+    currentInstr_ = instr;
 }
 
-
 void BasicBlockASM::dump(std::ostream& os) {
-    os << sym_ << ":\n";
+    os << label_ << ":\n";
     for (auto* instr : instrs_) {
         os << '\t';
         instr->dump(os);
