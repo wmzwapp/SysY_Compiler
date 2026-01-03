@@ -5,9 +5,10 @@
 #include <string>
 #include <iostream>
 
-
-class TypeIR;
-class SymbolIR;
+namespace IR {
+	class Type;
+	class Symbol;
+}
 
 /*
     FuncType        ::= "int";
@@ -17,7 +18,7 @@ class TypeAST {
 public:
 	void Dump(std::ostream& os) const { os << "<Type>int"; }
 	std::string repr() const { return "int"; }
-	TypeIR* get_ty_IR();
+	IR::Type* get_ty_IR();
 };
 
 
@@ -42,12 +43,12 @@ public:
 public:
 	void set_ident(std::string ident) { ident_ = ident; }
 
-	void set_IR_var(SymbolIR* var) { IRVar_ = var; }
-	SymbolIR* get_IR_var() { return IRVar_; }
+	void set_IR_var(IR::Symbol* var) { IRVar_ = var; }
+	IR::Symbol* get_IR_var() { return IRVar_; }
 
 private:
 	std::string ident_;
-	SymbolIR* IRVar_ { nullptr};
+	IR::Symbol* IRVar_ { nullptr};
 };
 
 /*

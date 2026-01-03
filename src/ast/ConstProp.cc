@@ -162,6 +162,13 @@ void ConstPropVisitor::visit(StmtAST* stmt, VCtx* ctx) {
         stmt->getBlock()->accept(this, cpCtx);
     } else if (stmt->isExp()) {
         // TODO
+    } else if (stmt->isIFExp()) {
+        auto* ifExp = stmt->getIFExp();
+        ifExp->condExp_->accept(this, ctx);
+        ifExp->ifStmt_->accept(this, ctx);
+        if (ifExp->hasElse()) {
+            ifExp->elseStmt_->accept(this, ctx);
+        }
     }
     cpCtx->set_ret_node(nullptr);
 }

@@ -3,9 +3,10 @@
 
 #include <cassert>
 
+using namespace IR;
 
-void TypeFuncIR::dump(std::ostream& os) const {
-    assert(isa<FunctionIR*>(prototype_));
-    os << "@" << static_cast<FunctionIR*>(prototype_)->get_func_name() << "():";
+void TypeFunc::dump(std::ostream& os) const {
+    assert(isa<Function*>(prototype_));
+    os << "@" << static_cast<Function*>(prototype_)->get_func_name() << "():";
     retType_->dump(os);
 }

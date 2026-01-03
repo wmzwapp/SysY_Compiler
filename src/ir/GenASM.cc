@@ -1,33 +1,38 @@
 #include "GenASM.hh"
 #include "FunctionIR.hh"
 #include "BlockIR.hh"
-#include "StmtIR.hh"
+#include "InstrIR.hh"
 #include "asm/cfg.hh"
 #include "asm/instr.hh"
 #include <unordered_set>
 #include <cassert>
 
+
+using namespace IR;
+
 int align_16_bytes(int v) {
     return (v + 15) & ~15;
 }
 
-void GACTX::gen_asm_func_prologue(FunctionIR* func) {
+void GACTX::gen_asm_func_prologue(Function* func) {
     std::unordered_set<std::string> vars;
     uint32_t stackSz { 0 };
     for (auto* block : func->get_BBs()) {
-        for (auto* stmt : block->get_stmts()) {
-            auto* ty = stmt->get_ty();
-            if (ty->isFunc() || ty->isUnit()) {
+        for (auto* instr : block->get_instrs()) {
+            if (!instr->isSymbolDef()) {
                 continue;
             }
-            if (ty->isInt()) {
-                auto* defVar = stmt->get_def_var();
-                assert(defVar != nullptr);
-                if (vars.find(defVar->repr()) == vars.end()) {
-                    defVar->set_offset(stackSz);
-                    stackSz += ty->get_layout_size();
-                    vars.insert(defVar->repr());
-                }
+            auto* instrSymDef = static_cast<InstrSymDef*>(instr);
+            auto* defVar = instrSymDef->get_def();
+            assert(defVar != nullptr);
+            auto* ty = defVar->get_ty();
+            if (isa<InstrAlloc*>(instr)) {
+                ty = static_cast<InstrAlloc*>(instr)->get_alloc_ty();
+            }
+            if (vars.find(defVar->repr()) == vars.end()) {
+                defVar->set_offset(stackSz);
+                stackSz += ty->get_layout_size();
+                vars.insert(defVar->repr());
             }
         }
     }
@@ -44,7 +49,7 @@ void GACTX::gen_asm_func_prologue(FunctionIR* func) {
     return_all_tmp_var();
 }
 
-void GACTX::gen_asm_func_epilogue(FunctionIR* func) {
+void GACTX::gen_asm_func_epilogue(Function* func) {
     auto stackSz = currentFunc_->get_stack_size();
     if (stackSz > 0) {
         auto* sp = get_reg_var_sp();
@@ -52,15 +57,15 @@ void GACTX::gen_asm_func_epilogue(FunctionIR* func) {
     }
 }
 
-VarASM* GACTX::get_a_reg_var(ValueIR* v) {
-    if (auto* opnd = dynamic_cast<ValueIntIR*>(v)) {
+VarASM* GACTX::get_a_reg_var(Value* v) {
+    if (auto* opnd = dynamic_cast<ValueInt*>(v)) {
         if (opnd->value_ == 0) {
             return get_reg_var_x0();
         }
         auto* var = get_tmp_var();
         currentBB_->create_instr<Instr2RI>(InstrOp::LI, var, opnd->value_);
         return var;
-    } else if (auto* opnd = dynamic_cast<SymbolIR*>(v)) {
+    } else if (auto* opnd = dynamic_cast<Symbol*>(v)) {
         auto* tmp = get_tmp_var();
         auto* sp = get_reg_var_sp();
         auto offset = opnd->get_offset();
@@ -85,7 +90,7 @@ GenASMVisitorContest::GenASMVisitorContest() {
     tmpVars_.push_back(mmpool_.make<VarASM>("t6", true));
 }
 
-void GenASMVisitor::visit(FunctionIR* func, IVCtx* ctx) {
+void GenASMVisitor::visit(Function* func, IVCtx* ctx) {
     auto* gctx = static_cast<GACTX*>(ctx);
     auto* funcASM = mmpool_.make<FuncASM>();
     auto* bbASM = mmpool_.make<BasicBlockASM>(func->get_func_name());
@@ -103,7 +108,7 @@ void GenASMVisitor::visit(FunctionIR* func, IVCtx* ctx) {
     gctx->get_current_BB()->create_instr<Instr0>(InstrOp::RET);
 }
 
-void GenASMVisitor::visit(StmtRetIR* stmt, IVCtx* ctx) {
+void GenASMVisitor::visit(InstrRet* stmt, IVCtx* ctx) {
     auto* gctx = static_cast<GACTX*>(ctx);
     auto* bb = gctx->get_current_BB();
     /*
@@ -113,9 +118,9 @@ void GenASMVisitor::visit(StmtRetIR* stmt, IVCtx* ctx) {
         ret
     */
     auto* a0 = gctx->get_reg_var_a0();
-    if (auto* v = dynamic_cast<ValueIntIR*>(stmt->get_value())) {
+    if (auto* v = dynamic_cast<ValueInt*>(stmt->get_value())) {
         bb->create_instr<Instr2RI>(InstrOp::LI, a0, v->value_);
-    } else if (auto* v = dynamic_cast<SymbolIR*>(stmt->get_value())) {
+    } else if (auto* v = dynamic_cast<Symbol*>(stmt->get_value())) {
         auto* sp = gctx->get_reg_var_sp();
         auto offset = v->get_offset();
         bb->create_instr<Instr3RIR>(InstrOp::LW, a0, offset, sp);
@@ -124,7 +129,7 @@ void GenASMVisitor::visit(StmtRetIR* stmt, IVCtx* ctx) {
     }
 }
 
-void GenASMVisitor::visit(StmtBinaryExprIR* stmt, IVCtx* ctx) {
+void GenASMVisitor::visit(InstrBExpr* stmt, IVCtx* ctx) {
     auto* gctx = static_cast<GACTX*>(ctx);
     switch (stmt->get_op()) {
         case BinaryOp::EQ:
@@ -171,7 +176,7 @@ void GenASMVisitor::visit(StmtBinaryExprIR* stmt, IVCtx* ctx) {
     }
 }
 
-void GACTX::gen_asm_binary_stmt_eq(StmtBinaryExprIR* stmt) {
+void GACTX::gen_asm_binary_stmt_eq(InstrBExpr* stmt) {
     /*
         result_ = eq opnd1_ opnd2_
         =>
@@ -180,18 +185,18 @@ void GACTX::gen_asm_binary_stmt_eq(StmtBinaryExprIR* stmt) {
     */
     auto* opnd1 = stmt->get_opnd1();
     auto* opnd2 = stmt->get_opnd2();
-    auto* result = stmt->get_def_var();
+    auto* result = stmt->get_def();
 
     auto* reg1 = get_a_reg_var(opnd1);
     auto* reg2 = get_a_reg_var(opnd2);
-    if (auto* var2 = dynamic_cast<ValueIntIR*>(opnd2)) {
+    if (auto* var2 = dynamic_cast<ValueInt*>(opnd2)) {
         if (reg1->is_temp()) {
             currentBB_->create_instr<Instr3RRI>(InstrOp::XORI, reg1, reg1, var2->value_);
         } else {
             auto* tmp = get_tmp_var();
             currentBB_->create_instr<Instr3RRI>(InstrOp::XORI, tmp, reg1, var2->value_);
         }
-    } else if (isa<SymbolIR*>(opnd2)) {
+    } else if (isa<Symbol*>(opnd2)) {
         if (reg1->is_temp()) {
             currentBB_->create_instr<Instr3RRR>(InstrOp::XOR, reg1, reg1, reg2);
         } else {
@@ -210,21 +215,21 @@ void GACTX::gen_asm_binary_stmt_eq(StmtBinaryExprIR* stmt) {
     return_all_tmp_var();
 }
 
-void GACTX::gen_asm_binary_stmt_ne(StmtBinaryExprIR* stmt) {
+void GACTX::gen_asm_binary_stmt_ne(InstrBExpr* stmt) {
     auto* opnd1 = stmt->get_opnd1();
     auto* opnd2 = stmt->get_opnd2();
-    auto* result = stmt->get_def_var();
+    auto* result = stmt->get_def();
 
     auto* reg1 = get_a_reg_var(opnd1);
     auto* reg2 = get_a_reg_var(opnd2);
-    if (auto* var2 = dynamic_cast<ValueIntIR*>(opnd2)) {
+    if (auto* var2 = dynamic_cast<ValueInt*>(opnd2)) {
         if (reg1->is_temp()) {
             currentBB_->create_instr<Instr3RRI>(InstrOp::XORI, reg1, reg1, var2->value_);
         } else {
             auto* tmp = get_tmp_var();
             currentBB_->create_instr<Instr3RRI>(InstrOp::XORI, tmp, reg1, var2->value_);
         }
-    } else if (isa<SymbolIR*>(opnd2)) {
+    } else if (isa<Symbol*>(opnd2)) {
         if (reg1->is_temp()) {
             currentBB_->create_instr<Instr3RRR>(InstrOp::XOR, reg1, reg1, reg2);
         } else {
@@ -243,21 +248,21 @@ void GACTX::gen_asm_binary_stmt_ne(StmtBinaryExprIR* stmt) {
     return_all_tmp_var();
 }
 
-void GACTX::gen_asm_binary_stmt_add(StmtBinaryExprIR* stmt) {
+void GACTX::gen_asm_binary_stmt_add(InstrBExpr* stmt) {
     auto* opnd1 = stmt->get_opnd1();
     auto* opnd2 = stmt->get_opnd2();
-    auto* result = stmt->get_def_var();
+    auto* result = stmt->get_def();
 
     auto* reg1 = get_a_reg_var(opnd1);
     auto* reg2 = get_a_reg_var(opnd2);
-    if (auto* var2 = dynamic_cast<ValueIntIR*>(opnd2)) {
+    if (auto* var2 = dynamic_cast<ValueInt*>(opnd2)) {
         if (reg1->is_temp()) {
             currentBB_->create_instr<Instr3RRI>(InstrOp::ADDI, reg1, reg1, var2->value_);
         } else {
             auto* tmp = get_tmp_var();
             currentBB_->create_instr<Instr3RRI>(InstrOp::ADDI, tmp, reg1, var2->value_);
         }
-    } else if (isa<SymbolIR*>(opnd2)) {
+    } else if (isa<Symbol*>(opnd2)) {
         if (reg1->is_temp()) {
             currentBB_->create_instr<Instr3RRR>(InstrOp::ADD, reg1, reg1, reg2);
         } else {
@@ -270,10 +275,10 @@ void GACTX::gen_asm_binary_stmt_add(StmtBinaryExprIR* stmt) {
     return_all_tmp_var();
 }
 
-void GACTX::gen_asm_binary_stmt_sub(StmtBinaryExprIR* stmt) {
+void GACTX::gen_asm_binary_stmt_sub(InstrBExpr* stmt) {
     auto* opnd1 = stmt->get_opnd1();
     auto* opnd2 = stmt->get_opnd2();
-    auto* result = stmt->get_def_var();
+    auto* result = stmt->get_def();
 
     auto* reg1 = get_a_reg_var(opnd1);
     auto* reg2 = get_a_reg_var(opnd2);
@@ -289,10 +294,10 @@ void GACTX::gen_asm_binary_stmt_sub(StmtBinaryExprIR* stmt) {
     return_all_tmp_var();
 }
 
-void GACTX::gen_asm_binary_stmt_mul(StmtBinaryExprIR* stmt) {
+void GACTX::gen_asm_binary_stmt_mul(InstrBExpr* stmt) {
     auto* opnd1 = stmt->get_opnd1();
     auto* opnd2 = stmt->get_opnd2();
-    auto* result = stmt->get_def_var();
+    auto* result = stmt->get_def();
 
     auto* var1 = get_a_reg_var(opnd1);
     auto* var2 = get_a_reg_var(opnd2);
@@ -308,10 +313,10 @@ void GACTX::gen_asm_binary_stmt_mul(StmtBinaryExprIR* stmt) {
     return_all_tmp_var();
 }
 
-void GACTX::gen_asm_binary_stmt_div(StmtBinaryExprIR* stmt) {
+void GACTX::gen_asm_binary_stmt_div(InstrBExpr* stmt) {
     auto* opnd1 = stmt->get_opnd1();
     auto* opnd2 = stmt->get_opnd2();
-    auto* result = stmt->get_def_var();
+    auto* result = stmt->get_def();
 
     auto* var1 = get_a_reg_var(opnd1);
     auto* var2 = get_a_reg_var(opnd2);
@@ -327,10 +332,10 @@ void GACTX::gen_asm_binary_stmt_div(StmtBinaryExprIR* stmt) {
     return_all_tmp_var();
 }
 
-void GACTX::gen_asm_binary_stmt_mod(StmtBinaryExprIR* stmt) {
+void GACTX::gen_asm_binary_stmt_mod(InstrBExpr* stmt) {
     auto* opnd1 = stmt->get_opnd1();
     auto* opnd2 = stmt->get_opnd2();
-    auto* result = stmt->get_def_var();
+    auto* result = stmt->get_def();
 
     auto* var1 = get_a_reg_var(opnd1);
     auto* var2 = get_a_reg_var(opnd2);
@@ -346,10 +351,10 @@ void GACTX::gen_asm_binary_stmt_mod(StmtBinaryExprIR* stmt) {
     return_all_tmp_var();
 }
 
-void GACTX::gen_asm_binary_stmt_lt(StmtBinaryExprIR* stmt) {
+void GACTX::gen_asm_binary_stmt_lt(InstrBExpr* stmt) {
     auto* opnd1 = stmt->get_opnd1();
     auto* opnd2 = stmt->get_opnd2();
-    auto* result = stmt->get_def_var();
+    auto* result = stmt->get_def();
 
     auto* var1 = get_a_reg_var(opnd1);
     auto* var2 = get_a_reg_var(opnd2);
@@ -365,10 +370,10 @@ void GACTX::gen_asm_binary_stmt_lt(StmtBinaryExprIR* stmt) {
     return_all_tmp_var();
 }
 
-void GACTX::gen_asm_binary_stmt_gt(StmtBinaryExprIR* stmt) {
+void GACTX::gen_asm_binary_stmt_gt(InstrBExpr* stmt) {
     auto* opnd1 = stmt->get_opnd1();
     auto* opnd2 = stmt->get_opnd2();
-    auto* result = stmt->get_def_var();
+    auto* result = stmt->get_def();
 
     auto* var1 = get_a_reg_var(opnd1);
     auto* var2 = get_a_reg_var(opnd2);
@@ -384,10 +389,10 @@ void GACTX::gen_asm_binary_stmt_gt(StmtBinaryExprIR* stmt) {
     return_all_tmp_var();
 }
 
-void GACTX::gen_asm_binary_stmt_le(StmtBinaryExprIR* stmt) {
+void GACTX::gen_asm_binary_stmt_le(InstrBExpr* stmt) {
     auto* opnd1 = stmt->get_opnd1();
     auto* opnd2 = stmt->get_opnd2();
-    auto* result = stmt->get_def_var();
+    auto* result = stmt->get_def();
 
     auto* var1 = get_a_reg_var(opnd1);
     auto* var2 = get_a_reg_var(opnd2);
@@ -409,10 +414,10 @@ void GACTX::gen_asm_binary_stmt_le(StmtBinaryExprIR* stmt) {
     return_all_tmp_var();
 }
 
-void GACTX::gen_asm_binary_stmt_ge(StmtBinaryExprIR* stmt) {
+void GACTX::gen_asm_binary_stmt_ge(InstrBExpr* stmt) {
     auto* opnd1 = stmt->get_opnd1();
     auto* opnd2 = stmt->get_opnd2();
-    auto* result = stmt->get_def_var();
+    auto* result = stmt->get_def();
 
     auto* var1 = get_a_reg_var(opnd1);
     auto* var2 = get_a_reg_var(opnd2);
@@ -434,10 +439,10 @@ void GACTX::gen_asm_binary_stmt_ge(StmtBinaryExprIR* stmt) {
     return_all_tmp_var();
 }
 
-void GACTX::gen_asm_binary_stmt_and(StmtBinaryExprIR* stmt) {
+void GACTX::gen_asm_binary_stmt_and(InstrBExpr* stmt) {
     auto* opnd1 = stmt->get_opnd1();
     auto* opnd2 = stmt->get_opnd2();
-    auto* result = stmt->get_def_var();
+    auto* result = stmt->get_def();
 
     auto* reg1 = get_a_reg_var(opnd1);
     if (reg1->is_temp()) {
@@ -466,10 +471,10 @@ void GACTX::gen_asm_binary_stmt_and(StmtBinaryExprIR* stmt) {
     return_all_tmp_var();
 }
 
-void GACTX::gen_asm_binary_stmt_or(StmtBinaryExprIR* stmt) {
+void GACTX::gen_asm_binary_stmt_or(InstrBExpr* stmt) {
     auto* opnd1 = stmt->get_opnd1();
     auto* opnd2 = stmt->get_opnd2();
-    auto* result = stmt->get_def_var();
+    auto* result = stmt->get_def();
 
     auto* reg1 = get_a_reg_var(opnd1);
     if (reg1->is_temp()) {
@@ -498,28 +503,26 @@ void GACTX::gen_asm_binary_stmt_or(StmtBinaryExprIR* stmt) {
     return_all_tmp_var();
 }
 
-void GenASMVisitor::visit(StoreIR* stmt, IVCtx* ctx) {
+void GenASMVisitor::visit(InstrStore* stmt, IVCtx* ctx) {
     auto* gctx = static_cast<GACTX*>(ctx);
-    assert(stmt->get_ty()->isUnit());
     auto* bb = gctx->get_current_BB();
 
     auto* var = gctx->get_a_reg_var(stmt->get_src());
-    assert(isa<SymbolIR*>(stmt->get_des()));
-    auto* desVar = static_cast<SymbolIR*>(stmt->get_des());
+    assert(isa<Symbol*>(stmt->get_des()));
+    auto* desVar = static_cast<Symbol*>(stmt->get_des());
     auto* sp = gctx->get_reg_var_sp();
     auto offset =  desVar->get_offset();
     bb->create_instr<Instr3RIR>(InstrOp::SW, var, offset, sp);
     gctx->return_all_tmp_var();
 }
 
-void GenASMVisitor::visit(LoadIR* stmt, IVCtx* ctx) {
+void GenASMVisitor::visit(InstrLoad* stmt, IVCtx* ctx) {
     auto* gctx = static_cast<GACTX*>(ctx);
-    assert(stmt->get_ty()->isInt());
     auto* bb = gctx->get_current_BB();
 
     auto* var = gctx->get_a_reg_var(stmt->get_src());
-    assert(isa<SymbolIR*>(stmt->get_des()));
-    auto* desVar = static_cast<SymbolIR*>(stmt->get_des());
+    assert(isa<Symbol*>(stmt->get_def()));
+    auto* desVar = static_cast<Symbol*>(stmt->get_def());
     auto* sp = gctx->get_reg_var_sp();
     auto offset =  desVar->get_offset();
     bb->create_instr<Instr3RIR>(InstrOp::SW, var, offset, sp);

@@ -113,7 +113,7 @@ void ScopeCheckerVisitor::visit(DeclAST* decl, VCtx* ctx) {
 void ScopeCheckerVisitor::visit(StmtAST* stmt, VCtx* ctx) {
     auto* scCtx = static_cast<ScopeCheckCtx*>(ctx);
     if (stmt->isAssignExp()) {
-        auto asg = stmt->getAssignExp();
+        auto* asg = stmt->getAssignExp();
         auto lvalIdent = asg->lval_->repr();
         if (!scCtx->has_sym(lvalIdent)) {
             throw ASTCheckFailed("[Scope Check] Undefiend symbol '%s'.", lvalIdent.c_str());
@@ -129,6 +129,13 @@ void ScopeCheckerVisitor::visit(StmtAST* stmt, VCtx* ctx) {
         stmt->getRetExp()->accept(this, scCtx);
     } else if (stmt->isBlock()) {
         stmt->getBlock()->accept(this, scCtx);
+    } else if (stmt->isIFExp()) {
+        auto* ifExp = stmt->getIFExp();
+        ifExp->condExp_->accept(this, scCtx);
+        ifExp->ifStmt_->accept(this, scCtx);
+        if (ifExp->hasElse()) {
+            ifExp->elseStmt_->accept(this, scCtx);
+        }
     }
 }
 

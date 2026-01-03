@@ -1,11 +1,13 @@
 #include "BlockIR.hh"
-#include "StmtIR.hh"
+#include "InstrIR.hh"
 
 
-void BlockIR::dump(std::ostream& os) const {
+using namespace IR;
+
+void Block::dump(std::ostream& os) const {
     os << '%' << sym_ << ':' << std::endl;
 
-    for (auto* stmt : stmts_) {
-        stmt->dump(os);
+    for (auto* instr : Instrs_) {
+        instr->dump(os);
     }
 }

@@ -52,7 +52,7 @@ extern MArena mmpool_;
 
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
-%token INT RETURN CONST
+%token INT RETURN CONST IF ELSE
 %token <str_val> IDENT PLUS MINUS LNOT MUL DIV MOD LT GT LE GE EQ NEQ LAND LOR
 %token <int_val> INT_CONST
 
@@ -69,6 +69,9 @@ extern MArena mmpool_;
 
 
 %type <str_val> UnaryOp BinaryOp1 BinaryOp2 BinaryOp3 BinaryOp4
+
+%nonassoc LOWER_THAN_ELSE
+%nonassoc ELSE
 
 %%
 
@@ -261,6 +264,16 @@ Stmt
     | ';' {
         // empty
         $$ = nullptr;
+    }
+    | IF '(' Exp ')' Stmt %prec LOWER_THAN_ELSE {
+        auto* stmt = mmpool_.make<StmtAST>();
+        stmt->setIFExp($3, $5);
+        $$ = stmt;
+    }
+    | IF '(' Exp ')' Stmt ELSE Stmt {
+        auto* stmt = mmpool_.make<StmtAST>();
+        stmt->setIFExp($3, $5, $7);
+        $$ = stmt;
     }
     ;
 

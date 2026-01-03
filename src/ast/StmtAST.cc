@@ -47,6 +47,16 @@ void StmtAST::Dump(std::ostream& os) const {
         getBlock()->Dump(os);
     } else if (isExp()) {
         getExp()->Dump(os);
+    } else if (isIFExp()) {
+        auto* ifExp = getIFExp();
+        os << "if (";
+        ifExp->condExp_->Dump(os);
+        os << ") ";
+        ifExp->ifStmt_->Dump(os);
+        if (ifExp->elseStmt_ != nullptr) {
+            os << " else ";
+            ifExp->elseStmt_->Dump(os);
+        }
     }
     os << " ;";
 }

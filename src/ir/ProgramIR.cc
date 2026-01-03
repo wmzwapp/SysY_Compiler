@@ -2,8 +2,9 @@
 #include "FunctionIR.hh"
 #include <ostream>
 
+using namespace IR;
 
-void ProgramIR::dump(std::ostream& os) const {
+void Program::dump(std::ostream& os) const {
     for (auto* func : funcs_) {
         func->dump(os);
     }

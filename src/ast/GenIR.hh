@@ -1,30 +1,30 @@
 #include "BaseAST.hh"
 
-
-class ProgramIR;
-class FunctionIR;
-class BlockIR;
-class ValueIR;
-class AllocIR;
+namespace IR {
+	class Program;
+	class Function;
+	class Block;
+	class Value;
+}
 
 struct GenIRCtx : public AstVisitorContext {
-	ProgramIR*	curProgram_ { nullptr };
-	FunctionIR*	curFunc_	{ nullptr };
-	BlockIR*	curBlock_	{ nullptr };
-	ValueIR*	curValue_	{ nullptr };
+	IR::Program*	curProgram_ { nullptr };
+	IR::Function*	curFunc_	{ nullptr };
+	IR::Block*	curBlock_	{ nullptr };
+	IR::Value*	curValue_	{ nullptr };
 
   public:
-	ProgramIR* get_current_programIR() { return curProgram_; }
-	void set_current_programIR(ProgramIR* ir) { curProgram_ = ir; }
+	IR::Program* get_current_programIR() { return curProgram_; }
+	void set_current_programIR(IR::Program* ir) { curProgram_ = ir; }
 
-	FunctionIR*	get_current_functionIR() { return curFunc_; }
-	void set_current_functionIR(FunctionIR* ir) { curFunc_ = ir; }
+	IR::Function*	get_current_functionIR() { return curFunc_; }
+	void set_current_functionIR(IR::Function* ir) { curFunc_ = ir; }
 
-	BlockIR* get_current_blockIR() { return curBlock_; }
-	void set_current_blockIR(BlockIR* ir) { curBlock_ = ir; }
+	IR::Block* get_current_blockIR() { return curBlock_; }
+	void set_current_blockIR(IR::Block* ir) { curBlock_ = ir; }
 
-	ValueIR* get_current_value() { return curValue_; }
-	void set_current_value(ValueIR* ir) { curValue_ = ir; }
+	IR::Value* get_current_value() { return curValue_; }
+	void set_current_value(IR::Value* ir) { curValue_ = ir; }
 };
 
 

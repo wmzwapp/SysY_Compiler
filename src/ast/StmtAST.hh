@@ -61,11 +61,20 @@ struct retStmt {
 	ExpAST* retExp_ { nullptr };
 };
 
+struct IFExp {
+	ExpAST* condExp_ { nullptr };
+	StmtAST* ifStmt_ { nullptr };
+	StmtAST* elseStmt_ { nullptr };
+
+	bool hasElse() const noexcept { return elseStmt_ != nullptr; }
+};
+
 /*
 	Stmt			::= "return" [ Exp ] ";"
 						| LVal "=" Exp ";"
 						| Block
 						| [ Exp ] ";"
+						| "if" "(" Exp ")" Stmt ["else" Stmt]
 */
 class StmtAST : public BaseAST {
 public:
@@ -81,6 +90,7 @@ public:
 	bool isRetExp() const { return exp_.index() == 1; }
 	bool isBlock() const { return exp_.index() == 2; }
 	bool isExp() const { return exp_.index() == 3; }
+	bool isIFExp() const { return exp_.index() == 4; }
 
 	ExpAST* getRetExp() { return std::get<1>(exp_).retExp_; }
 	const ExpAST* getRetExp() const { return std::get<1>(exp_).retExp_; }
@@ -90,14 +100,18 @@ public:
 	const BlockAST* getBlock() const { return std::get<2>(exp_); }
 	ExpAST* getExp() { return std::get<3>(exp_); }
 	const ExpAST* getExp() const { return std::get<3>(exp_); }
+	IFExp* getIFExp() { return &std::get<4>(exp_); }
+	const IFExp* getIFExp() const { return &std::get<4>(exp_); }
 
 	void setAssignExp(BaseAST* lval, BaseAST* exp) { exp_ = lassign {(VarAST*)lval, (ExpAST*)exp}; }
 	void setRetExp(BaseAST* exp) { exp_ = retStmt {(ExpAST*)exp}; }
 	void setBlock(BaseAST* block) { exp_ = (BlockAST*)block; }
 	void setExp(BaseAST* exp) { exp_ = (ExpAST*)exp; }
+	void setIFExp(BaseAST* condExp, BaseAST* ifStmt, BaseAST* elseStmt = nullptr)
+		{ exp_ = IFExp { (ExpAST*)condExp, (StmtAST*)ifStmt, (StmtAST*)elseStmt }; }
 
 private:
-	std::variant<lassign, retStmt, BlockAST*, ExpAST*>	exp_ { lassign() };
+	std::variant<lassign, retStmt, BlockAST*, ExpAST*, IFExp>	exp_ { lassign() };
 };
 
 

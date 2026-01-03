@@ -7,25 +7,25 @@
 #include "ir/BlockIR.hh"
 #include "ir/TypeIR.hh"
 #include "ir/ValueIR.hh"
-#include "ir/StmtIR.hh"
+#include "ir/InstrIR.hh"
 
 
 void GenIRVisitor::visit(FuncDefAST* func, VCtx* ctx) {
     auto* gctx = static_cast<GenIRCtx*>(ctx);
 
-    auto* type = mmpool_.make<TypeFuncIR>();
+    auto* type = mmpool_.make<IR::TypeFunc>();
     auto* retType = func->get_ret_type()->get_ty_IR();
     type->set_ret_type(retType);
 
-    auto* sym = mmpool_.make<SymbolIR>(func->get_ident()->repr(), mmpool_.make<TypeUnitIR>());
-    auto* funcIR = mmpool_.make<FunctionIR>(sym, type);
+    auto* sym = mmpool_.make<IR::Symbol>(func->get_ident()->repr(), type);
+    auto* funcIR = mmpool_.make<IR::Function>(sym);
 
     type->set_prototype(funcIR);
 
     gctx->get_current_programIR()->add_func(funcIR);
     gctx->set_current_functionIR(funcIR);
 
-    auto* entryBB = mmpool_.make<BlockIR>("enty");
+    auto* entryBB = mmpool_.make<IR::Block>("enty");
     funcIR->add_BB(entryBB);
     gctx->set_current_blockIR(entryBB);
 
@@ -55,22 +55,22 @@ void GenIRVisitor::visit(DeclAST* decl, VCtx* ctx) {
             def->initExp_->accept(this, gctx);
             auto* initval = gctx->get_current_value();
             
-            auto* ptrTy = mmpool_.make<TypePtrIR>(def->type_.get_ty_IR());
-            auto* symbol = mmpool_.make<SymbolIR>(def->var_->repr(), ptrTy);
-            auto* allocIR = mmpool_.make<AllocIR>(symbol, def->type_.get_ty_IR());
+            auto* ptrTy = mmpool_.make<IR::TypePtr>(def->type_.get_ty_IR());
+            auto* symbol = mmpool_.make<IR::Symbol>(def->var_->repr(), ptrTy);
+            auto* allocIR = mmpool_.make<IR::InstrAlloc>(symbol, def->type_.get_ty_IR());
             def->var_->set_IR_var(symbol);
-            bbIR->add_stmt(allocIR);
+            bbIR->add_instr(allocIR);
             gctx->set_current_value(symbol);
             funcIR->add_var(def->var_->repr(), symbol);
 
-            auto* storeIR = mmpool_.make<StoreIR>(initval, symbol);
-            bbIR->add_stmt(storeIR);
+            auto* storeIR = mmpool_.make<IR::InstrStore>(initval, symbol);
+            bbIR->add_instr(storeIR);
         } else {
-            auto* ptrTy = mmpool_.make<TypePtrIR>(def->type_.get_ty_IR());
-            auto* symbol = mmpool_.make<SymbolIR>(def->var_->repr(), ptrTy);
-            auto* allocIR = mmpool_.make<AllocIR>(symbol, def->type_.get_ty_IR());
+            auto* ptrTy = mmpool_.make<IR::TypePtr>(def->type_.get_ty_IR());
+            auto* symbol = mmpool_.make<IR::Symbol>(def->var_->repr(), ptrTy);
+            auto* allocIR = mmpool_.make<IR::InstrAlloc>(symbol, def->type_.get_ty_IR());
             def->var_->set_IR_var(symbol);
-            bbIR->add_stmt(allocIR);
+            bbIR->add_instr(allocIR);
             gctx->set_current_value(symbol);
             funcIR->add_var(def->var_->repr(), symbol);
         }
@@ -83,14 +83,14 @@ void GenIRVisitor::visit(StmtAST* stmt, VCtx* ctx) {
     auto* bbIR = gctx->get_current_blockIR();
 
     if (stmt->isRetExp()) {
-        ValueIR* retval { nullptr };
+        IR::Value* retval { nullptr };
         if (stmt->getRetExp() != nullptr) {
             stmt->getRetExp()->accept(this, gctx);
             retval = gctx->get_current_value();
         }
-        auto* retIR = mmpool_.make<StmtRetIR>(retval);
-        bbIR->add_stmt(retIR);
-        bbIR->add_end_stmt(retIR);
+        auto* retIR = mmpool_.make<IR::InstrRet>(retval);
+        bbIR->add_instr(retIR);
+        bbIR->add_end_instr(retIR);
     } else if (stmt->isExp()) {
         stmt->getExp()->accept(this, gctx);
     } else if (stmt->isAssignExp()) {
@@ -101,10 +101,18 @@ void GenIRVisitor::visit(StmtAST* stmt, VCtx* ctx) {
         auto* lval = assignExp->lval_;
         auto* var = funcIR->get_var(lval->repr());
 
-        auto* storeIR = mmpool_.make<StoreIR>(retVal, var);
-        bbIR->add_stmt(storeIR);
+        auto* storeIR = mmpool_.make<IR::InstrStore>(retVal, var);
+        bbIR->add_instr(storeIR);
     } else if (stmt->isBlock()) {
         stmt->getBlock()->accept(this, gctx);
+    } else if (stmt->isIFExp()) {
+        // TODO
+        auto* ifExp = stmt->getIFExp();
+        ifExp->condExp_->accept(this, ctx);
+        ifExp->ifStmt_->accept(this, ctx);
+        if (ifExp->hasElse()) {
+            ifExp->elseStmt_->accept(this, ctx);
+        }
     }
 }
 
@@ -121,16 +129,16 @@ void GenIRVisitor::visit(ExpAST* exp, VCtx* ctx) {
             auto op = operExp->op_;
 
             if (op.get_op_type() == OpAST::LNOT) {
-                auto* ret = funcIR->get_tmp_var(mmpool_.make<TypeIntIR>());
-                auto* value0 = mmpool_.make<ValueIntIR>(0);
-                auto* stmt = mmpool_.make<StmtBinaryExprIR>(BinaryOp::EQ, ret, val, value0);
-                bbIR->add_stmt(stmt);
+                auto* ret = funcIR->get_tmp_var(mmpool_.make<IR::TypeInt>());
+                auto* value0 = mmpool_.make<IR::ValueInt>(0);
+                auto* stmt = mmpool_.make<IR::InstrBExpr>(IR::BinaryOp::EQ, ret, val, value0);
+                bbIR->add_instr(stmt);
                 gctx->set_current_value(ret);
             } else if (op.get_op_type() == OpAST::MINUS) {
-                auto* ret = funcIR->get_tmp_var(mmpool_.make<TypeIntIR>());
-                auto* value0 = mmpool_.make<ValueIntIR>(0);
-                auto* stmt = mmpool_.make<StmtBinaryExprIR>(BinaryOp::SUB, ret, value0, val);
-                bbIR->add_stmt(stmt);
+                auto* ret = funcIR->get_tmp_var(mmpool_.make<IR::TypeInt>());
+                auto* value0 = mmpool_.make<IR::ValueInt>(0);
+                auto* stmt = mmpool_.make<IR::InstrBExpr>(IR::BinaryOp::SUB, ret, value0, val);
+                bbIR->add_instr(stmt);
                 gctx->set_current_value(ret);
             }
         } else {
@@ -138,27 +146,27 @@ void GenIRVisitor::visit(ExpAST* exp, VCtx* ctx) {
             auto* val1 = gctx->get_current_value();
             operExp->opnd2_->accept(this, gctx);
             auto* val2 = gctx->get_current_value();
-            auto OpIR { BinaryOp::BAD };
+            auto OpIR { IR::BinaryOp::BAD };
             switch (operExp->op_.get_op_type()) {
-                case OpAST::PLUS:   OpIR = BinaryOp::ADD;   break;
-                case OpAST::MINUS:  OpIR = BinaryOp::SUB;   break;
-                case OpAST::MUL:    OpIR = BinaryOp::MUL;   break;
-                case OpAST::DIV:    OpIR = BinaryOp::DIV;   break;
-                case OpAST::MOD:    OpIR = BinaryOp::MOD;   break;
-                case OpAST::LT:     OpIR = BinaryOp::LT;    break;
-                case OpAST::LE:     OpIR = BinaryOp::LE;    break;
-                case OpAST::GT:     OpIR = BinaryOp::GT;    break;
-                case OpAST::GE:     OpIR = BinaryOp::GE;    break;
-                case OpAST::EQ:     OpIR = BinaryOp::EQ;    break;
-                case OpAST::NEQ:    OpIR = BinaryOp::NE;    break;
-                case OpAST::LAND:   OpIR = BinaryOp::AND;   break;
-                case OpAST::LOR:    OpIR = BinaryOp::OR;    break;
+                case OpAST::PLUS:   OpIR = IR::BinaryOp::ADD;   break;
+                case OpAST::MINUS:  OpIR = IR::BinaryOp::SUB;   break;
+                case OpAST::MUL:    OpIR = IR::BinaryOp::MUL;   break;
+                case OpAST::DIV:    OpIR = IR::BinaryOp::DIV;   break;
+                case OpAST::MOD:    OpIR = IR::BinaryOp::MOD;   break;
+                case OpAST::LT:     OpIR = IR::BinaryOp::LT;    break;
+                case OpAST::LE:     OpIR = IR::BinaryOp::LE;    break;
+                case OpAST::GT:     OpIR = IR::BinaryOp::GT;    break;
+                case OpAST::GE:     OpIR = IR::BinaryOp::GE;    break;
+                case OpAST::EQ:     OpIR = IR::BinaryOp::EQ;    break;
+                case OpAST::NEQ:    OpIR = IR::BinaryOp::NE;    break;
+                case OpAST::LAND:   OpIR = IR::BinaryOp::AND;   break;
+                case OpAST::LOR:    OpIR = IR::BinaryOp::OR;    break;
                 default:
                     break;
             }
-            auto* ret = funcIR->get_tmp_var(mmpool_.make<TypeIntIR>());
-            auto* stmt = mmpool_.make<StmtBinaryExprIR>(OpIR, ret, val1, val2);
-            bbIR->add_stmt(stmt);
+            auto* ret = funcIR->get_tmp_var(mmpool_.make<IR::TypeInt>());
+            auto* stmt = mmpool_.make<IR::InstrBExpr>(OpIR, ret, val1, val2);
+            bbIR->add_instr(stmt);
             gctx->set_current_value(ret);
         }
     } else if (exp->is_lval()) {
@@ -176,16 +184,16 @@ void GenIRVisitor::visit(VarAST* var, VCtx* ctx) {
     auto* defVar = var->get_IR_var();
     auto* ty = defVar->get_ty();
     if (ty->isPointer()) {
-        ty = ((TypePtrIR*)ty)->get_source();
+        ty = ((IR::TypePtr*)ty)->get_source();
     }
     auto* tmpVar = funcIR->get_tmp_var(ty);
-    auto* loadIR = mmpool_.make<LoadIR>(tmpVar, defVar, ty);
+    auto* loadIR = mmpool_.make<IR::InstrLoad>(tmpVar, defVar);
     gctx->set_current_value(tmpVar);
-    bbIR->add_stmt(loadIR);
+    bbIR->add_instr(loadIR);
 }
 
 void GenIRVisitor::visit(NumberAST* num, VCtx* ctx) {
     auto* gctx = static_cast<GenIRCtx*>(ctx);
-    auto* numVar = mmpool_.make<ValueIntIR>(num->get_val());
+    auto* numVar = mmpool_.make<IR::ValueInt>(num->get_val());
     gctx->set_current_value(numVar);
 }

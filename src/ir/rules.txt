@@ -1,0 +1,48 @@
+// TYPE
+Type ::= "i32" | ArrayType | PointerType | FunType;
+ArrayType ::= "[" Type "," INT "]";
+PointerType ::= "*" Type;
+FunType ::= "(" [Type {"," Type}] ")" [":" Type];
+
+// VALUE
+Value ::= SYMBOL | INT | "undef";
+Initializer ::= INT | "undef" | Aggregate | "zeroinit";
+Aggregate ::= "{" Initializer {"," Initializer} "}";
+
+// SYMBOLDEF
+SymbolDef ::= SYMBOL "=" (MemoryDeclaration | Load | GetPointer | GetElementPointer | BinaryExpr | FunCall);
+GlobalSymbolDef ::= "global" SYMBOL "=" GlobalMemoryDeclaration;
+
+MemoryDeclaration ::= "alloc" Type;
+GlobalMemoryDeclaration ::= "alloc" Type "," Initializer;
+Load ::= "load" SYMBOL;
+GetPointer ::= "getptr" SYMBOL "," Value;
+GetElementPointer ::= "getelemptr" SYMBOL "," Value;
+BinaryExpr ::= BINARY_OP Value "," Value;
+
+// STORE
+Store ::= "store" (Value | Initializer) "," SYMBOL;
+
+// BRANCH
+Branch ::= "br" Value "," SYMBOL "," SYMBOL;
+
+// JUMP
+Jump ::= "jump" SYMBOL;
+
+// FUNCALL
+FunCall ::= "call" SYMBOL "(" [Value {"," Value}] ")";
+
+// RETURN
+Return ::= "ret" [Value];
+
+
+FunDef ::= "fun" SYMBOL "(" [FunParams] ")" [":" Type] "{" FunBody "}";
+FunParams ::= SYMBOL ":" Type {"," SYMBOL ":" Type};
+FunBody ::= {Block};
+Block ::= SYMBOL ":" {Statement} EndStatement;
+Statement ::= SymbolDef | Store | FunCall;
+EndStatement ::= Branch | Jump | Return;
+
+FunDecl ::= "decl" SYMBOL "(" [FunDeclParams] ")" [":" Type];
+FunDeclParams ::= Type {"," Type};
+

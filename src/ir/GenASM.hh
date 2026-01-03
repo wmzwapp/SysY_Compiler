@@ -5,6 +5,8 @@ class FuncASM;
 class BasicBlockASM;
 class VarASM;
 
+namespace IR {
+
 class GenASMVisitorContest : public IVCtx {
     TOPASM* asmTop_ { nullptr };
     FuncASM* currentFunc_ { nullptr };
@@ -31,29 +33,29 @@ public:
     void set_current_stask_offset(uint32_t ofs) { stackOffset_ = ofs; }
     uint32_t get_current_stack_offset() { return stackOffset_; }
 
-    void gen_asm_func_prologue(FunctionIR* func);
-    void gen_asm_func_epilogue(FunctionIR* func);
+    void gen_asm_func_prologue(Function* func);
+    void gen_asm_func_epilogue(Function* func);
 
     VarASM* get_reg_var_x0() { return x0; }
 	VarASM* get_reg_var_a0() { return a0; }
 	VarASM* get_reg_var_sp() { return sp; }
     VarASM* get_tmp_var() { return tmpVars_[tmpVarCount_++]; }
     void return_all_tmp_var() { tmpVarCount_ = 0; }
-    VarASM* get_a_reg_var(ValueIR* b);
+    VarASM* get_a_reg_var(Value* b);
 
-    void gen_asm_binary_stmt_eq(StmtBinaryExprIR* stmt);
-	void gen_asm_binary_stmt_ne(StmtBinaryExprIR* stmt);
-	void gen_asm_binary_stmt_sub(StmtBinaryExprIR* stmt);
-	void gen_asm_binary_stmt_add(StmtBinaryExprIR* stmt);
-	void gen_asm_binary_stmt_mul(StmtBinaryExprIR* stmt);
-	void gen_asm_binary_stmt_div(StmtBinaryExprIR* stmt);
-	void gen_asm_binary_stmt_mod(StmtBinaryExprIR* stmt);
-	void gen_asm_binary_stmt_lt(StmtBinaryExprIR* stmt);
-	void gen_asm_binary_stmt_gt(StmtBinaryExprIR* stmt);
-	void gen_asm_binary_stmt_le(StmtBinaryExprIR* stmt);
-	void gen_asm_binary_stmt_ge(StmtBinaryExprIR* stmt);
-	void gen_asm_binary_stmt_and(StmtBinaryExprIR* stmt);
-	void gen_asm_binary_stmt_or(StmtBinaryExprIR* stmt);
+    void gen_asm_binary_stmt_eq(InstrBExpr* stmt);
+	void gen_asm_binary_stmt_ne(InstrBExpr* stmt);
+	void gen_asm_binary_stmt_sub(InstrBExpr* stmt);
+	void gen_asm_binary_stmt_add(InstrBExpr* stmt);
+	void gen_asm_binary_stmt_mul(InstrBExpr* stmt);
+	void gen_asm_binary_stmt_div(InstrBExpr* stmt);
+	void gen_asm_binary_stmt_mod(InstrBExpr* stmt);
+	void gen_asm_binary_stmt_lt(InstrBExpr* stmt);
+	void gen_asm_binary_stmt_gt(InstrBExpr* stmt);
+	void gen_asm_binary_stmt_le(InstrBExpr* stmt);
+	void gen_asm_binary_stmt_ge(InstrBExpr* stmt);
+	void gen_asm_binary_stmt_and(InstrBExpr* stmt);
+	void gen_asm_binary_stmt_or(InstrBExpr* stmt);
 };
 
 using GACTX = GenASMVisitorContest;
@@ -61,9 +63,11 @@ using GACTX = GenASMVisitorContest;
 class GenASMVisitor : public IRVisitor {
 public:
     using IRVisitor::visit;
-	virtual void visit(FunctionIR* func, IVCtx* ctx) override;
-	virtual void visit(StmtRetIR* stmt, IVCtx* ctx) override;
-	virtual void visit(StmtBinaryExprIR* stmt, IVCtx* ctx) override;
-	virtual void visit(LoadIR* stmt, IVCtx* ctx) override;
-	virtual void visit(StoreIR* stmt, IVCtx* ctx) override;
+	virtual void visit(Function* func, IVCtx* ctx) override;
+	virtual void visit(InstrRet* stmt, IVCtx* ctx) override;
+	virtual void visit(InstrBExpr* stmt, IVCtx* ctx) override;
+	virtual void visit(InstrLoad* stmt, IVCtx* ctx) override;
+	virtual void visit(InstrStore* stmt, IVCtx* ctx) override;
 };
+
+}

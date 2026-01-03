@@ -18,17 +18,17 @@ enum class ObjType : uint32_t {
     /* AST end */
 
     /* IR begin */
-	IRBase,
+	BaseIR,
 	ValueIntIR,
 	SymbolIR,
 	ProgramIR,
 	FunctionIR,
 	BlockIR,
-	StmtRetIR,
-	StmtBinaryExprIR,
-	AllocIR,
-	StoreIR,
-	LoadIR,
+	InstrRetIR,
+	InstrBExprIR,
+	InstrAllocIR,
+	InstrStoreIR,
+	InstrLoadIR,
     /* IR end */
 };
 

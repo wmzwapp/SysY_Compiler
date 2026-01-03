@@ -87,8 +87,8 @@ int main (int argc, const char *argv[]) {
 
     // ASM
     if (genASM) {
-        GenASMVisitor gasmv;
-        GACTX gasmctx;
+        IR::GenASMVisitor gasmv;
+        IR::GACTX gasmctx;
         gasmctx.set_asm_top(&__ASMER__);
         gasmv.visit(&__IR_TOP__, &gasmctx);
 

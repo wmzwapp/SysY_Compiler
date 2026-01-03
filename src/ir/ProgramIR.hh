@@ -1,24 +1,26 @@
 #pragma once
 
 #include "BaseIR.hh"
-#include "TypeIR.hh"
 
+namespace IR {
 
-class ProgramIR : public IRBase {
+class Program : public BaseIR {
 public:
 	inline static constexpr ObjType TYPE_ID_ { ObjType::ProgramIR };
-	ProgramIR(): IRBase(mmpool_.make<TypeUnitIR>()) { SET_TYPE_ID(ProgramIR); }
+	Program(): BaseIR() { SET_TYPE_ID(ProgramIR); }
 
 public:
 	void dump(std::ostream& os) const override;
 	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
 	
 public:
-	void add_func(FunctionIR* func) { funcs_.push_back(func); }
+	void add_func(Function* func) { funcs_.push_back(func); }
 	auto& get_funcs() { return funcs_; }
 
 private:
-	std::vector<FunctionIR*> funcs_;
+	std::vector<Function*> funcs_;
 };
 
-inline ProgramIR __IR_TOP__;
+}	// namespace IR
+
+inline IR::Program __IR_TOP__;

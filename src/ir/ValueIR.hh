@@ -4,18 +4,26 @@
 #include "TypeIR.hh"
 
 
-class VarASM;
+namespace IR {
 
-class ValueIR : public IRBase {
+class Value : public BaseIR {
 public:
-	ValueIR(TypeIR* ty) : IRBase(ty) {}
+	Value(Type* ty) : ty_(ty) {}
+
+	Type* get_ty() { return ty_; }
+	void set_ty(Type* ty) { ty_ = ty; }
+
+private:
+	Type* ty_ { nullptr };
 };
 
 
-class ValueIntIR : public ValueIR {
+class ValueInt : public Value {
 public:
 	static inline constexpr ObjType TYPE_ID_ { ObjType::ValueIntIR };
-	ValueIntIR(int v) : ValueIR(mmpool_.make<TypeIntIR>()), value_(v) { SET_TYPE_ID(ValueIntIR); }
+	ValueInt(int v)
+		: Value(mmpool_.make<TypeInt>()), value_(v)
+		{ SET_TYPE_ID(ValueIntIR); }
 
 public:
 	void dump(std::ostream& os) const override { os << value_; }
@@ -27,18 +35,15 @@ public:
 };
 
 
-class SymbolIR : public ValueIR {
+class Symbol : public Value {
 public:
 	static inline constexpr ObjType TYPE_ID_ { ObjType::SymbolIR };
-	SymbolIR(std::string sym, TypeIR* ty, bool isTemp = false):
-		ValueIR(ty),
-		isTemp_(isTemp), sym_(sym)
+	Symbol(std::string sym, Type* ty, bool isTemp = false)
+		: Value(ty), isTemp_(isTemp), sym_(sym)
 		{ SET_TYPE_ID(SymbolIR); }
 
 public:
-	void dump(std::ostream& os) const override {
-		os << (isTemp_ ? '%' : '@') << sym_;
-	}
+	void dump(std::ostream& os) const override { os << (isTemp_ ? '%' : '@') << sym_; }
 	std::string repr() const override { return sym_; }
 	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
 
@@ -51,3 +56,5 @@ private:
 	std::string sym_;
 	unsigned stackOffset_ { (unsigned)-1 };
 };
+
+}
