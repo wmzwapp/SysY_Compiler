@@ -30,6 +30,9 @@ enum class InstrOp {
 	ORI,			// <ori rd, rs1, imm12> : 计算 rs1 寄存器和 imm12 (ori) 按位或的值, 存入 rd 寄存器.
 	LW,				// <lw rs, imm12(rd)> : 计算 rd 寄存器的值与 imm12 相加的结果作为访存地址, 从内存中读取 32-bit 的数据, 存入 rs 寄存器.
 	SW,				// <sw rs2, imm12(rs1)>: 计算 rs1 寄存器的值与 imm12 相加的结果作为访存地址, 将 rs2 寄存器的值 (32-bit) 存入内存.
+	BEQZ,			// <beqz rs, label>: 如果 rs 寄存器的值等于 (beqz) 0, 则转移到目标 label.
+	BNEZ,			// <bnez rs, label>: 如果 rs 寄存器的值不等于 (bnez) 0, 则转移到目标 label.
+	J,				// <j label>: 无条件转移到目标 label.
 };
 
 
@@ -39,6 +42,7 @@ public:
 		static uint64_t count_ {0};
 		debugId_ = count_++;
 	}
+	virtual ~Instruction() {}
 
 public:
 	virtual VarASM* get_ret() { return nullptr; }
@@ -65,6 +69,30 @@ class Instr0 : public Instruction {
 
   private:
 	InstrOp		op_;
+};
+
+template<typename T>
+class Instr1 : public Instruction {
+public:
+	Instr1(InstrOp op, T opnd):
+		Instruction(), op_(op), opnd_(opnd) {}
+
+	void dump(std::ostream& os) override {
+		os << std::left;
+		os << std::setw(7) << dumpOp(op_);
+		if constexpr (std::is_pointer_v<T>) {
+			os << std::setw(4) << *opnd_;
+		} else {
+			os << std::setw(4) << opnd_;
+		}
+		os << std::right;
+	}
+
+	VarASM* get_opnd() { return opnd_; }
+
+private:
+	InstrOp     op_;
+	T          	opnd_;
 };
 
 
@@ -131,8 +159,10 @@ private:
 	T2          opnd2_;
 };
 
+using Instr1S = Instr1<std::string>;
 using Instr2RI = Instr2<int>;
 using Instr2RR = Instr2<VarASM*>;
+using Instr2RS = Instr2<std::string>;
 using Instr3RRR = Instr3<VarASM*, VarASM*>;
 using Instr3RRI = Instr3<VarASM*, int>;
 using Instr3RIR = Instr3<int, VarASM*>;
@@ -161,6 +191,9 @@ std::string_view Instruction::dumpOp(InstrOp op) {
 		case InstrOp::ORI: return "ori";
 		case InstrOp::LW: return "lw";
 		case InstrOp::SW: return "sw";
+		case InstrOp::BEQZ: return "beqz";
+		case InstrOp::BNEZ: return "bnez";
+		case InstrOp::J: return "j";
 		default:
 			return "";
 	}

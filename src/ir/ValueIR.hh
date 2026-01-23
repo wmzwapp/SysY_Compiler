@@ -57,4 +57,15 @@ private:
 	unsigned stackOffset_ { (unsigned)-1 };
 };
 
+class ValueUndef : public Value {
+public:
+	static inline constexpr ObjType TYPE_ID_ { ObjType::ValueUndefIR };
+	ValueUndef(Type* ty) : Value(ty) { SET_TYPE_ID(ValueUndefIR); }
+
+public:
+	void dump(std::ostream& os) const override { os << "undef"; }
+	std::string repr() const override { return "undef"; }
+	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
+};
+
 }

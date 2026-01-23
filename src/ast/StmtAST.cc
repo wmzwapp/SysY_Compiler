@@ -52,7 +52,9 @@ void StmtAST::Dump(std::ostream& os) const {
         os << "if (";
         ifExp->condExp_->Dump(os);
         os << ") ";
-        ifExp->ifStmt_->Dump(os);
+        if (ifExp->ifStmt_) {
+            ifExp->ifStmt_->Dump(os);
+        }
         if (ifExp->elseStmt_ != nullptr) {
             os << " else ";
             ifExp->elseStmt_->Dump(os);

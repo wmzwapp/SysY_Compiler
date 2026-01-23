@@ -21,6 +21,17 @@ void FuncASM::dump(std::ostream& os) {
     }
 }
 
+BasicBlockASM* FuncASM::create_or_get_BB(std::string label) {
+    if (bbsMap_.find(label) != bbsMap_.end()) {
+        return bbsMap_[label];
+    } else {
+        auto* bb = mmpool_.make<BasicBlockASM>(label);
+        bbsMap_[label] = bb;
+        bbs_.push_back(bb);
+        return bb;
+    }
+}
+
 void BasicBlockASM::push_back_instr(Instruction* instr) {
     if (currentInstr_ != nullptr) {
         currentInstr_->setNext(instr);
@@ -40,5 +51,5 @@ void BasicBlockASM::dump(std::ostream& os) {
         instr->dump(os);
         os << std::endl;
     }
-    os << std::endl;
+    // os << std::endl;
 }

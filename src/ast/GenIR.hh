@@ -13,7 +13,7 @@ struct GenIRCtx : public AstVisitorContext {
 	IR::Block*	curBlock_	{ nullptr };
 	IR::Value*	curValue_	{ nullptr };
 
-  public:
+public:
 	IR::Program* get_current_programIR() { return curProgram_; }
 	void set_current_programIR(IR::Program* ir) { curProgram_ = ir; }
 
@@ -31,11 +31,15 @@ struct GenIRCtx : public AstVisitorContext {
 class GenIRVisitor : public AstVisitor {
 public:
 	using AstVisitor::visit;
-	virtual void visit(FuncDefAST* func, VCtx* ctx);
-	virtual void visit(BlockItemAST* blockItem, VCtx* ctx);
-	virtual void visit(DeclAST* decl, VCtx* ctx);
-	virtual void visit(StmtAST* stmt, VCtx* ctx);
-	virtual void visit(ExpAST* expr, VCtx* ctx);
-	virtual void visit(VarAST* var, VCtx* ctx);
-	virtual void visit(NumberAST* num, VCtx* ctx);
+	void visit(FuncDefAST* func, VCtx* ctx) override;
+	void visit(BlockItemAST* blockItem, VCtx* ctx) override;
+	void visit(DeclAST* decl, VCtx* ctx) override;
+	void visit(StmtAST* stmt, VCtx* ctx) override;
+	void visit(ExpAST* expr, VCtx* ctx) override;
+	void visit(VarAST* var, VCtx* ctx) override;
+	void visit(NumberAST* num, VCtx* ctx) override;
+
+public:
+	void process_return_stmt(StmtAST* stmt, GenIRCtx* ctx);
+	void process_ifelse_stmt(StmtAST* stmt, GenIRCtx* ctx);
 };

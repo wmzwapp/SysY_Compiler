@@ -5,6 +5,7 @@
 #include <ostream>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 class FuncASM;
 class BasicBlockASM;
@@ -25,8 +26,9 @@ class FuncASM {
 public:
 	void dump(std::ostream& os);
 
-	auto& get_BBs() { return bbs_; }
-	void add_BB(BasicBlockASM* bb) { bbs_.push_back(bb); }
+	BasicBlockASM* create_or_get_BB(std::string label);
+	// auto& get_BBs() { return bbs_; }
+	// void add_BB(BasicBlockASM* bb) { bbs_.push_back(bb); }
 
 	void set_stack_size(unsigned int sz) { stackSize_ = sz; }
 	auto get_stack_size() { return stackSize_; }
@@ -36,6 +38,7 @@ public:
 private:
 	unsigned int stackSize_ { 0 };
 	std::vector<BasicBlockASM*> bbs_;
+	std::unordered_map<std::string, BasicBlockASM*> bbsMap_;
 };
 
 

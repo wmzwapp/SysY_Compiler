@@ -1,11 +1,12 @@
 #pragma once
 
 #include "BaseIR.hh"
-#include "ValueIR.hh"
 #include <ostream>
 
 
 namespace IR {
+
+class Type;
 
 class InstrBase : public BaseIR {
 public:
@@ -19,11 +20,29 @@ public:
 	virtual bool isStore() const { return false; }
 	virtual bool isFuncCall() const { return false; }
 
-	bool isEndStatement() const { return isBranch() || isJump() || isReturn(); }
+	bool is_end_instr() const { return isBranch() || isJump() || isReturn(); }
 
 public:
 	InstrBase* get_pre_instr() { return pre_; }	
 	void set_pre_instr(InstrBase* instr) { pre_ = instr; }
+	void insert_me_before(InstrBase* instr) {
+		if (get_pre_instr()) {
+			get_pre_instr()->set_next_instr(get_next_instr());
+		}
+		auto* bInstr = instr->get_pre_instr();
+		instr->set_pre_instr(this);
+		set_next_instr(instr);
+		set_pre_instr(bInstr);
+	}
+	void insert_me_behind(InstrBase* instr) {
+		if (get_pre_instr()) {
+			get_pre_instr()->set_next_instr(get_next_instr());
+		}
+		auto* bInstr = instr->get_next_instr();
+		instr->set_next_instr(this);
+		set_pre_instr(instr);
+		set_next_instr(bInstr);
+	}
 
 	InstrBase* get_next_instr() { return next_; }
 	void set_next_instr(InstrBase* instr) { next_ = instr; }
@@ -53,13 +72,7 @@ public:
 
 public:
 	bool isReturn() const override { return true; }
-	void dump(std::ostream& os) const override {
-		os << "\tret ";
-		if (value_ != nullptr) {
-			value_->dump(os);
-		}
-		os << std::endl;
-	}
+	void dump(std::ostream& os) const override;
 	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
 
 public:
@@ -101,19 +114,9 @@ public:
 	}
 
 public:
-	void dump(std::ostream& os) const override {
-		os << "\t";
-		def_->dump(os);
-		os << " = ";
-		dump_op(os);
-		os << " ";
-		opnd1_->dump(os);
-		os << ", ";
-		opnd2_->dump(os);
-		os << std::endl;
-	}
+	void dump(std::ostream& os) const override;
 	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
-	
+
 public:
 	Value* get_opnd1() { return opnd1_; }
 	Value* get_opnd2() { return opnd2_; }
@@ -138,13 +141,7 @@ public:
 		{ SET_TYPE_ID(InstrAllocIR); }
 
 public:
-	void dump(std::ostream& os) const override {
-		os << '\t';
-		def_->dump(os);
-		os << " = alloc ";
-		allocTy_->dump(os);
-		os << std::endl;
-	}
+	void dump(std::ostream& os) const override;
 	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
 
 public:
@@ -168,14 +165,7 @@ public:
 
 public:
 	bool isStore() const override { return true; }
-	void dump(std::ostream& os) const override {
-		os << '\t';
-		os << "store ";
-		src_->dump(os);
-		os << ", ";
-		des_->dump(os);
-		os << std::endl;
-	}
+	void dump(std::ostream& os) const override;
 	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
 
 public:
@@ -199,20 +189,60 @@ public:
 		{ SET_TYPE_ID(InstrLoadIR); }
 
 public:
-	void dump(std::ostream& os) const override {
-		os << '\t';
-		def_->dump(os);
-		os << " = load ";
-		src_->dump(os);
-		os << std::endl;
-	}
+	void dump(std::ostream& os) const override;
 	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
 
 public:
-	Value* get_src() { return src_; }
+	auto* get_src() { return src_; }
 
 private:
 	Symbol*	src_	{ nullptr };
+};
+
+class InstrBr : public InstrBase {
+	/*
+		br %value, %trueB, %falseB
+	*/
+public:
+	STATIC_TYPE_ID_DECL(InstrBrIR);
+	InstrBr(Value* v, Block* t, Block* f)
+		: InstrBase(), value_(v), trueB_(t), falseB_(f)
+		{ SET_TYPE_ID(InstrBrIR); }
+
+public:
+	void dump(std::ostream& os) const override;
+	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
+	bool isBranch() const override { return true; }
+
+public:
+	auto* get_value() { return value_; }
+	auto* get_true_branch() { return trueB_; }
+	auto* get_false_branch() { return falseB_; }
+
+private:
+	Value* value_ { nullptr };
+	Block* trueB_ { nullptr };
+	Block* falseB_ { nullptr };
+};
+
+class InstrJump : public InstrBase {
+	/*
+		jump %branch
+	*/
+public:
+	STATIC_TYPE_ID_DECL(InstrJumpIR);
+	InstrJump(Block* b) : InstrBase(), branch_(b) { SET_TYPE_ID(InstrJumpIR); }
+
+public:
+	void dump(std::ostream& os) const override;
+	void accept(IRVisitor* visitor, IVCtx* ctx) override { visitor->visit(this, ctx); }
+	bool isJump() const override { return true; }
+
+public:
+	auto* get_branch() { return branch_; }
+
+private:
+	Block*	branch_ { nullptr };
 };
 
 }

@@ -18,9 +18,12 @@ class InstrBExpr;
 class InstrAlloc;
 class InstrLoad;
 class InstrStore;
+class InstrBr;
+class InstrJump;
 class Value;
 class Symbol;
 class ValueInt;
+class ValueUndef;
 
 class IRVisitorContext {
 	// empty
@@ -38,8 +41,11 @@ public:
 	virtual void visit(InstrAlloc* stmt, IVCtx* ctx);
 	virtual void visit(InstrLoad* stmt, IVCtx* ctx);
 	virtual void visit(InstrStore* stmt, IVCtx* ctx);
+	virtual void visit(InstrBr* instr, IVCtx* ctx);
+	virtual void visit(InstrJump* instr, IVCtx* ctx);
 	virtual void visit(Symbol* sym, IVCtx* ctx);
 	virtual void visit(ValueInt* num, IVCtx* ctx);
+	virtual void visit(ValueUndef* num, IVCtx* ctx);
 };
 class BaseIR {
 	ObjType typeId_;

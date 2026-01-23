@@ -49,6 +49,7 @@ public:
 public:
 	void set_prototype(BaseIR* funcIR) { prototype_ = funcIR; }
 	void set_ret_type(Type* retType) { retType_ = retType; }
+	auto* get_ret_type() { return retType_; }
 
 private:
 	BaseIR* prototype_ { nullptr };

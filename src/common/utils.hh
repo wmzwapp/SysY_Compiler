@@ -21,6 +21,7 @@ enum class ObjType : uint32_t {
 	BaseIR,
 	ValueIntIR,
 	SymbolIR,
+	ValueUndefIR,
 	ProgramIR,
 	FunctionIR,
 	BlockIR,
@@ -29,6 +30,8 @@ enum class ObjType : uint32_t {
 	InstrAllocIR,
 	InstrStoreIR,
 	InstrLoadIR,
+	InstrBrIR,
+	InstrJumpIR,
     /* IR end */
 };
 
@@ -38,7 +41,7 @@ enum class ObjType : uint32_t {
 
 template <typename T>
 concept has_type_id = requires {
-	{ std::remove_pointer_t<T>::TYPE_ID_ };
+	std::remove_pointer_t<T>::TYPE_ID_;
 };
 
 template<typename T>
@@ -67,6 +70,11 @@ inline bool isa(OBJ_T obj) {
 		return obj.get_type_id() == CHECK_T::TYPE_ID_;
 	}
 }
+
+template<typename T>
+concept IRBlock = has_type_id<T> && requires (T t) {
+	T::TYPE_ID_ == ObjType::BlockIR;
+};
 
 // template<mytype T>
 // inline bool is_exp_family(T&& obj) {

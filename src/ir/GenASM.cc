@@ -2,6 +2,7 @@
 #include "FunctionIR.hh"
 #include "BlockIR.hh"
 #include "InstrIR.hh"
+#include "ValueIR.hh"
 #include "asm/cfg.hh"
 #include "asm/instr.hh"
 #include <unordered_set>
@@ -49,7 +50,7 @@ void GACTX::gen_asm_func_prologue(Function* func) {
     return_all_tmp_var();
 }
 
-void GACTX::gen_asm_func_epilogue(Function* func) {
+void GACTX::gen_asm_func_epilogue() {
     auto stackSz = currentFunc_->get_stack_size();
     if (stackSz > 0) {
         auto* sp = get_reg_var_sp();
@@ -93,8 +94,7 @@ GenASMVisitorContest::GenASMVisitorContest() {
 void GenASMVisitor::visit(Function* func, IVCtx* ctx) {
     auto* gctx = static_cast<GACTX*>(ctx);
     auto* funcASM = mmpool_.make<FuncASM>();
-    auto* bbASM = mmpool_.make<BasicBlockASM>(func->get_func_name());
-    funcASM->add_BB(bbASM);
+    auto* bbASM = funcASM->create_or_get_BB(func->get_func_name());
     gctx->get_asm_top()->add_func(funcASM);
     gctx->set_current_func(funcASM);
     gctx->set_current_BB(bbASM);
@@ -104,8 +104,26 @@ void GenASMVisitor::visit(Function* func, IVCtx* ctx) {
     for (auto* block : func->get_BBs()) {
         block->accept(this, ctx);
     }
-    gctx->gen_asm_func_epilogue(func);
-    gctx->get_current_BB()->create_instr<Instr0>(InstrOp::RET);
+}
+
+void GenASMVisitor::visit(Block* block, IVCtx* ctx) {
+    if (block->get_instrs().empty()) {
+        // TODO: should remove empty block IR
+        return;
+    }
+
+    auto* gctx = static_cast<GACTX*>(ctx);
+    auto* func = gctx->get_current_func();
+    auto* bb = func->create_or_get_BB(block->get_symbol()->repr());
+    gctx->set_current_BB(bb);
+    // for (auto* stmt : block->get_instrs()) {
+    //     stmt->accept(this, ctx);
+    // }
+    auto* instr = block->get_entry_instr();
+    while (instr) {
+        instr->accept(this, ctx);
+        instr = instr->get_next_instr();
+    }
 }
 
 void GenASMVisitor::visit(InstrRet* stmt, IVCtx* ctx) {
@@ -127,6 +145,8 @@ void GenASMVisitor::visit(InstrRet* stmt, IVCtx* ctx) {
     } else {
         assert(false && "unexpected branch!");
     }
+    gctx->gen_asm_func_epilogue();
+    gctx->get_current_BB()->create_instr<Instr0>(InstrOp::RET);
 }
 
 void GenASMVisitor::visit(InstrBExpr* stmt, IVCtx* ctx) {
@@ -527,5 +547,25 @@ void GenASMVisitor::visit(InstrLoad* stmt, IVCtx* ctx) {
     auto offset =  desVar->get_offset();
     bb->create_instr<Instr3RIR>(InstrOp::SW, var, offset, sp);
     gctx->return_all_tmp_var();
+}
+
+void GenASMVisitor::visit(InstrBr* instr, IVCtx* ctx) {
+    auto* gctx = static_cast<GACTX*>(ctx);
+    auto* bb = gctx->get_current_BB();
+
+    auto* var = gctx->get_a_reg_var(instr->get_value());
+    auto trueLable = instr->get_true_branch()->get_symbol()->repr();
+    bb->create_instr<Instr2RS>(InstrOp::BNEZ, var, trueLable);
+    auto falseLabel = instr->get_false_branch()->get_symbol()->repr();
+    bb->create_instr<Instr1S>(InstrOp::J, falseLabel);
+    gctx->return_all_tmp_var();
+}
+
+void GenASMVisitor::visit(InstrJump* instr, IVCtx* ctx) {
+    auto* gctx = static_cast<GACTX*>(ctx);
+    auto* bb = gctx->get_current_BB();
+
+    auto label = instr->get_branch()->get_symbol()->repr();
+    bb->create_instr<Instr1S>(InstrOp::J, label);
 }
 

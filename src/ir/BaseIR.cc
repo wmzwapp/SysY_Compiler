@@ -51,7 +51,15 @@ void IRVisitor::visit(InstrStore* stmt, IVCtx* ctx) {
     stmt->get_des()->accept(this, ctx);
 }
 
+void IRVisitor::visit(InstrBr* instr, IVCtx* ctx) {
+    instr->get_value()->accept(this, ctx);
+    instr->get_true_branch()->accept(this, ctx);
+    instr->get_false_branch()->accept(this, ctx);
+}
 
+void IRVisitor::visit(InstrJump* instr, IVCtx* ctx) {
+    instr->get_branch()->accept(this, ctx);
+}
 
 void IRVisitor::visit(Symbol* sym, IVCtx* ctx) {
 
@@ -59,5 +67,9 @@ void IRVisitor::visit(Symbol* sym, IVCtx* ctx) {
 
 void IRVisitor::visit(ValueInt* num, IVCtx* ctx) {
 
+}
+
+void IRVisitor::visit(ValueUndef* undef, IVCtx* ctx) {
+    
 }
 

@@ -132,7 +132,9 @@ void ScopeCheckerVisitor::visit(StmtAST* stmt, VCtx* ctx) {
     } else if (stmt->isIFExp()) {
         auto* ifExp = stmt->getIFExp();
         ifExp->condExp_->accept(this, scCtx);
-        ifExp->ifStmt_->accept(this, scCtx);
+        if (ifExp->ifStmt_) {
+            ifExp->ifStmt_->accept(this, scCtx);
+        }
         if (ifExp->hasElse()) {
             ifExp->elseStmt_->accept(this, scCtx);
         }

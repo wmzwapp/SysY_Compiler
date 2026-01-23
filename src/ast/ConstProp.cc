@@ -165,7 +165,9 @@ void ConstPropVisitor::visit(StmtAST* stmt, VCtx* ctx) {
     } else if (stmt->isIFExp()) {
         auto* ifExp = stmt->getIFExp();
         ifExp->condExp_->accept(this, ctx);
-        ifExp->ifStmt_->accept(this, ctx);
+        if (ifExp->ifStmt_) {
+            ifExp->ifStmt_->accept(this, ctx);
+        }
         if (ifExp->hasElse()) {
             ifExp->elseStmt_->accept(this, ctx);
         }

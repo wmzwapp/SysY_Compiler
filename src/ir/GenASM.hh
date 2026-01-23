@@ -34,7 +34,7 @@ public:
     uint32_t get_current_stack_offset() { return stackOffset_; }
 
     void gen_asm_func_prologue(Function* func);
-    void gen_asm_func_epilogue(Function* func);
+    void gen_asm_func_epilogue();
 
     VarASM* get_reg_var_x0() { return x0; }
 	VarASM* get_reg_var_a0() { return a0; }
@@ -64,10 +64,13 @@ class GenASMVisitor : public IRVisitor {
 public:
     using IRVisitor::visit;
 	virtual void visit(Function* func, IVCtx* ctx) override;
+    virtual void visit(Block* block, IVCtx* ctx) override;
 	virtual void visit(InstrRet* stmt, IVCtx* ctx) override;
 	virtual void visit(InstrBExpr* stmt, IVCtx* ctx) override;
 	virtual void visit(InstrLoad* stmt, IVCtx* ctx) override;
 	virtual void visit(InstrStore* stmt, IVCtx* ctx) override;
+    virtual void visit(InstrBr* instr, IVCtx* ctx) override;
+	virtual void visit(InstrJump* instr, IVCtx* ctx) override;
 };
 
 }
