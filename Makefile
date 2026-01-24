@@ -52,6 +52,7 @@ run_koopa:
 run_asm:
 	clang out.S -c -o out.o -target riscv32-unknown-linux-elf -march=rv32im -mabi=ilp32
 	ld.lld out.o -L$(CDE_LIBRARY_PATH)/riscv32 -lsysy -o out
-	qemu-riscv32-static out; echo $$?
+# 	qemu-riscv32-static out; echo $$?
+	qemu-riscv32 out; echo $$?
 
 -include $(DEPS)

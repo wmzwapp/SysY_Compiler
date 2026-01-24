@@ -1,0 +1,13 @@
+.vscode
+project.zsh
+.clangd
+compile_commands.json
+build
+comp.log
+hello.c
+out
+out.ast
+out.koopa
+out.o
+out.S
+run.log
