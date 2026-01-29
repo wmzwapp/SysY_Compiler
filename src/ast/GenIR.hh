@@ -6,6 +6,7 @@ namespace IR {
 	class Block;
 	class Value;
 }
+struct OperExpAST;
 
 struct GenIRCtx : public AstVisitorContext {
 	IR::Program*	curProgram_ { nullptr };
@@ -42,4 +43,5 @@ public:
 public:
 	void process_return_stmt(StmtAST* stmt, GenIRCtx* ctx);
 	void process_ifelse_stmt(StmtAST* stmt, GenIRCtx* ctx);
+	void process_short_circuit_eval(OperExpAST* expr, GenIRCtx* ctx);
 };

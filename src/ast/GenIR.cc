@@ -2,12 +2,15 @@
 #include "FuncDefAST.hh"
 #include "BlockAST.hh"
 #include "StmtAST.hh"
+#include "common/mmp.hh"
+#include "common/utils.hh"
 #include "ir/ProgramIR.hh"
 #include "ir/FunctionIR.hh"
 #include "ir/BlockIR.hh"
 #include "ir/TypeIR.hh"
 #include "ir/ValueIR.hh"
 #include "ir/InstrIR.hh"
+#include <cassert>
 
 
 void GenIRVisitor::visit(FuncDefAST* func, VCtx* ctx) {
@@ -25,11 +28,8 @@ void GenIRVisitor::visit(FuncDefAST* func, VCtx* ctx) {
     gctx->get_current_programIR()->add_func(funcIR);
     gctx->set_current_functionIR(funcIR);
 
-    // auto* bbSym = mmpool_.make<IR::Symbol>("entry", mmpool_.make<IR::TypeUnit>(), true);
-    // auto* entryBB = mmpool_.make<IR::Block>(bbSym);
     auto* bb = funcIR->create_entry_BB();
     funcIR->create_exit_BB();
-    // funcIR->add_BB(entryBB);
     gctx->set_current_blockIR(bb);
 
     func->get_block()->accept(this, gctx);
@@ -117,17 +117,15 @@ void GenIRVisitor::visit(StmtAST* stmt, VCtx* ctx) {
 
 void GenIRVisitor::process_return_stmt(StmtAST* stmt, GenIRCtx* ctx) {
     auto* funcIR = ctx->get_current_functionIR();
-    auto* bbIR = ctx->get_current_blockIR();
     if (stmt->getRetExp() == nullptr) {
         auto* retval = mmpool_.make<IR::ValueUndef>(funcIR->get_return_type());
-        bbIR->create_instr<IR::InstrStore>(retval, funcIR->get_return_var());
+        ctx->get_current_blockIR()->create_instr<IR::InstrStore>(retval, funcIR->get_return_var());
     } else {
         stmt->getRetExp()->accept(this, ctx);
         auto* retval = ctx->get_current_value();
-        bbIR->create_instr<IR::InstrStore>(retval, funcIR->get_return_var());
+        ctx->get_current_blockIR()->create_instr<IR::InstrStore>(retval, funcIR->get_return_var());
     }
-    bbIR->create_instr<IR::InstrJump>(funcIR->get_exit_BB());
-    // bbIR->set_terminated(true);
+    ctx->get_current_blockIR()->create_instr<IR::InstrJump>(funcIR->get_exit_BB());
 }
 
 void link_bb(IR::Block* prevB, IRBlock auto*... nextBs) {
@@ -136,9 +134,9 @@ void link_bb(IR::Block* prevB, IRBlock auto*... nextBs) {
 
 void GenIRVisitor::process_ifelse_stmt(StmtAST* stmt, GenIRCtx* ctx) {
     auto* funcIR = ctx->get_current_functionIR();
-    auto* curB = ctx->get_current_blockIR();
     auto* ifExp = stmt->getIFExp();
     ifExp->condExp_->accept(this, ctx);
+    auto* curB = ctx->get_current_blockIR();
     auto* value = ctx->get_current_value();
     assert(isa<IR::ValueInt*>(value) || isa<IR::Symbol*>(value));
     auto* thenB = funcIR->create_BB();
@@ -160,7 +158,6 @@ void GenIRVisitor::process_ifelse_stmt(StmtAST* stmt, GenIRCtx* ctx) {
         link_bb(curB, mergeB);
     } else {
         link_bb(curB, funcIR->get_exit_BB());
-        // endB = funcIR->get_exit_BB();
     }
     if (ifExp->hasElse()) {
         // false branch
@@ -172,9 +169,63 @@ void GenIRVisitor::process_ifelse_stmt(StmtAST* stmt, GenIRCtx* ctx) {
             link_bb(curB, mergeB);
         } else {
             link_bb(curB, funcIR->get_exit_BB());
-            // endB = funcIR->get_exit_BB();
         }
     }
+    ctx->set_current_blockIR(mergeB);
+}
+
+void GenIRVisitor::process_short_circuit_eval(OperExpAST* expr, GenIRCtx* ctx) {
+    /*
+        ret = lhs || rhs
+        =>
+        int ret = 1
+        if (lhs == 0) ret = rhs != 0;
+
+        ret = lhs && rhs
+        =>
+        int ret = 0
+        if (lhs == 1) ret = rhs != 0;
+    */
+    auto op = expr->op_.get_op_type();
+    assert(op == OpAST::LOR || op == OpAST::LAND);
+
+    expr->opnd1_->accept(this, ctx);
+    auto* opnd1V = ctx->get_current_value();
+    auto* funcIR = ctx->get_current_functionIR();
+    auto* curB = ctx->get_current_blockIR();
+
+    // int ret = 1/0;
+    auto* intTy = mmpool_.make<IR::TypeInt>();
+    auto* retVar = funcIR->get_tmp_var(mmpool_.make<IR::TypePtr>(intTy));
+    curB->create_instr<IR::InstrAlloc>(retVar, intTy);
+    auto* val = mmpool_.make<IR::ValueInt>(op == OpAST::LOR ? 1 : 0);
+    curB->create_instr<IR::InstrStore>(val, retVar);
+
+    // if (lhs == 0/1)
+    val = mmpool_.make<IR::ValueInt>(op == OpAST::LOR ? 0 : 1);
+    auto* condVar = funcIR->get_tmp_var(intTy);
+    curB->create_instr<IR::InstrBExpr>(IR::BinaryOp::EQ, condVar, opnd1V, val);
+    auto* thenB = funcIR->create_BB();
+    auto* mergeB = funcIR->create_BB();
+    curB->create_instr<IR::InstrBr>(condVar, thenB, mergeB);
+    link_bb(curB, thenB, mergeB);
+
+    // eval rhs
+    ctx->set_current_blockIR(thenB);
+    expr->opnd2_->accept(this, ctx);
+    curB = ctx->get_current_blockIR();
+    auto* opnd2V = ctx->get_current_value();
+    if (curB->is_terminated()) {
+        assert(false);
+    }
+
+    // ret = rhs != 0;
+    auto* tmpVar = funcIR->get_tmp_var(intTy);
+    curB->create_instr<IR::InstrBExpr>(IR::BinaryOp::NE, tmpVar, opnd2V, mmpool_.make<IR::ValueInt>(0));
+    curB->create_instr<IR::InstrLoad>(retVar, tmpVar);
+    curB->create_instr<IR::InstrJump>(mergeB);
+
+    ctx->set_current_value(retVar);
     ctx->set_current_blockIR(mergeB);
 }
 
@@ -202,31 +253,34 @@ void GenIRVisitor::visit(ExpAST* exp, VCtx* ctx) {
                 gctx->set_current_value(ret);
             }
         } else {
-            operExp->opnd1_->accept(this, gctx);
-            auto* val1 = gctx->get_current_value();
-            operExp->opnd2_->accept(this, gctx);
-            auto* val2 = gctx->get_current_value();
-            auto OpIR { IR::BinaryOp::BAD };
-            switch (operExp->op_.get_op_type()) {
-                case OpAST::PLUS:   OpIR = IR::BinaryOp::ADD;   break;
-                case OpAST::MINUS:  OpIR = IR::BinaryOp::SUB;   break;
-                case OpAST::MUL:    OpIR = IR::BinaryOp::MUL;   break;
-                case OpAST::DIV:    OpIR = IR::BinaryOp::DIV;   break;
-                case OpAST::MOD:    OpIR = IR::BinaryOp::MOD;   break;
-                case OpAST::LT:     OpIR = IR::BinaryOp::LT;    break;
-                case OpAST::LE:     OpIR = IR::BinaryOp::LE;    break;
-                case OpAST::GT:     OpIR = IR::BinaryOp::GT;    break;
-                case OpAST::GE:     OpIR = IR::BinaryOp::GE;    break;
-                case OpAST::EQ:     OpIR = IR::BinaryOp::EQ;    break;
-                case OpAST::NEQ:    OpIR = IR::BinaryOp::NE;    break;
-                case OpAST::LAND:   OpIR = IR::BinaryOp::AND;   break;
-                case OpAST::LOR:    OpIR = IR::BinaryOp::OR;    break;
-                default:
+            auto op = operExp->op_.get_op_type();
+            if (op == OpAST::LAND || op == OpAST::LOR) {
+                process_short_circuit_eval(operExp, gctx);
+            } else {
+                operExp->opnd1_->accept(this, gctx);
+                auto* val1 = gctx->get_current_value();
+                operExp->opnd2_->accept(this, gctx);
+                auto* val2 = gctx->get_current_value();
+                auto OpIR { IR::BinaryOp::BAD };
+                switch (op) {
+                    case OpAST::PLUS:   OpIR = IR::BinaryOp::ADD;   break;
+                    case OpAST::MINUS:  OpIR = IR::BinaryOp::SUB;   break;
+                    case OpAST::MUL:    OpIR = IR::BinaryOp::MUL;   break;
+                    case OpAST::DIV:    OpIR = IR::BinaryOp::DIV;   break;
+                    case OpAST::MOD:    OpIR = IR::BinaryOp::MOD;   break;
+                    case OpAST::LT:     OpIR = IR::BinaryOp::LT;    break;
+                    case OpAST::LE:     OpIR = IR::BinaryOp::LE;    break;
+                    case OpAST::GT:     OpIR = IR::BinaryOp::GT;    break;
+                    case OpAST::GE:     OpIR = IR::BinaryOp::GE;    break;
+                    case OpAST::EQ:     OpIR = IR::BinaryOp::EQ;    break;
+                    case OpAST::NEQ:    OpIR = IR::BinaryOp::NE;    break;
+                    default:
                     break;
+                }
+                auto* ret = funcIR->get_tmp_var(mmpool_.make<IR::TypeInt>());
+                bbIR->create_instr<IR::InstrBExpr>(OpIR, ret, val1, val2);
+                gctx->set_current_value(ret);
             }
-            auto* ret = funcIR->get_tmp_var(mmpool_.make<IR::TypeInt>());
-            bbIR->create_instr<IR::InstrBExpr>(OpIR, ret, val1, val2);
-            gctx->set_current_value(ret);
         }
     } else if (exp->is_lval()) {
         exp->get_lval()->accept(this, gctx);

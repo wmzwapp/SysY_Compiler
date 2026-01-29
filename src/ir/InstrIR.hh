@@ -10,7 +10,10 @@ class Type;
 
 class InstrBase : public BaseIR {
 public:
-	InstrBase() : BaseIR() {}
+	InstrBase() : BaseIR() {
+		static int count_;
+		debugId_ = count_ ++;
+	}
 
 public:
 	virtual bool isReturn() const { return false; }
@@ -50,6 +53,7 @@ public:
 public:
 	InstrBase* pre_ { nullptr };
 	InstrBase* next_ { nullptr };
+	int debugId_;
 };
 
 class InstrSymDef : public InstrBase {

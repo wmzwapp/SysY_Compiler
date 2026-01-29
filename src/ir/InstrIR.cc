@@ -82,7 +82,7 @@ void InstrBExpr::dump_op(std::ostream& os) const {
 }
 
 void InstrRet::dump(std::ostream& os) const {
-	os << "\tret ";
+	os << "\t" << debugId_ << "\tret ";
 	if (value_ != nullptr) {
 		value_->dump(os);
 	}
@@ -90,7 +90,7 @@ void InstrRet::dump(std::ostream& os) const {
 }
 
 void InstrBExpr::dump(std::ostream& os) const {
-	os << "\t";
+	os << "\t" << debugId_ << "\t";
 	def_->dump(os);
 	os << " = ";
 	dump_op(os);
@@ -102,7 +102,7 @@ void InstrBExpr::dump(std::ostream& os) const {
 }
 
 void InstrAlloc::dump(std::ostream& os) const {
-	os << '\t';
+	os << "\t" << debugId_ << "\t";
 	def_->dump(os);
 	os << " = alloc ";
 	allocTy_->dump(os);
@@ -110,7 +110,7 @@ void InstrAlloc::dump(std::ostream& os) const {
 }
 
 void InstrStore::dump(std::ostream& os) const {
-	os << "\tstore ";
+	os << "\t" << debugId_ << "\tstore ";
 	src_->dump(os);
 	os << ", ";
 	des_->dump(os);
@@ -118,7 +118,7 @@ void InstrStore::dump(std::ostream& os) const {
 }
 
 void InstrLoad::dump(std::ostream& os) const {
-	os << '\t';
+	os << "\t" << debugId_ << "\t";
 	def_->dump(os);
 	os << " = load ";
 	src_->dump(os);
@@ -126,7 +126,7 @@ void InstrLoad::dump(std::ostream& os) const {
 }
 
 void InstrBr::dump(std::ostream& os) const {
-	os << "\tbr ";
+	os << "\t" << debugId_ << "\tbr ";
 	value_->dump(os);
 	os << ", ";
 	trueB_->get_symbol()->dump(os);
@@ -136,7 +136,7 @@ void InstrBr::dump(std::ostream& os) const {
 }
 
 void InstrJump::dump(std::ostream& os) const {
-	os << "\tjump ";
+	os << "\t" << debugId_ << "\tjump ";
 	branch_->get_symbol()->dump(os);
 	os << std::endl;
 }

@@ -17,25 +17,6 @@ Block* Function::create_BB() {
     return newBB;
 }
 
-// Block* Function::create_entry_BB() {
-//     entryBB_ = create_BB();
-//     // exitBB_ = entryBB_;
-//     // returnSlot_ = mmpool_.make<Symbol>("retSlot", mmpool_.make<TypePtr>(sym_->get_ty()));
-//     // entryBB_->create_instr<InstrAlloc>(returnSlot_, sym_->get_ty());
-//     // auto* instr = mmpool_.make<InstrAlloc>(returnSlot_, sym_->get_ty());
-//     // entryBB_->add_instr(instr);
-//     return entryBB_;
-// }
-
-// Block* Function::create_exit_BB() {
-//     exitBB_ = create_BB();
-//     if (returnSlot_ != nullptr) {
-//         auto* retVar = get_tmp_var(get_return_type());
-//         exitBB_->create_instr<InstrLoad>(retVar, returnSlot_);
-//         exitBB_->create_instr<InstrRet>(retVar);
-//     }
-//     return exitBB_;
-// }
 
 Symbol* Function::get_return_var() {
     if (returnSlot_) {
@@ -48,7 +29,6 @@ Symbol* Function::get_return_var() {
     } else {
         auto* mark = entryBB_->get_current_instr();
         auto* instr = entryBB_->create_instr<InstrAlloc>(returnSlot_, retTy);
-        // auto* instr = mmpool_.make<InstrAlloc>(returnSlot_, retTy);
         instr->insert_me_before(entryBB_->get_entry_instr());
         entryBB_->set_entry_instr(instr);
         entryBB_->set_current_instr(mark);
