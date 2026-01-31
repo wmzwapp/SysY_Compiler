@@ -19,6 +19,9 @@ Stmt          ::= LVal "=" Exp ";"
                 | Block
                 | "return" [Exp] ";";
                 | "if" "(" Exp ")" Stmt ["else" Stmt]
+                | "while" "(" Exp ")" Stmt
+                | "break" ";"
+                | "continue" ";"
 
 Exp           ::= LOrExp;
 LVal          ::= IDENT;

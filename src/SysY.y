@@ -52,7 +52,7 @@ extern MArena mmpool_;
 
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
-%token INT RETURN CONST IF ELSE
+%token INT RETURN CONST IF ELSE WHILE BREAK CONTINUE
 %token <str_val> IDENT PLUS MINUS LNOT MUL DIV MOD LT GT LE GE EQ NEQ LAND LOR
 %token <int_val> INT_CONST
 
@@ -273,6 +273,21 @@ Stmt
     | IF '(' Exp ')' Stmt ELSE Stmt {
         auto* stmt = mmpool_.make<StmtAST>();
         stmt->setIFExp($3, $5, $7);
+        $$ = stmt;
+    }
+    | WHILE '(' Exp ')' Stmt {
+        auto* stmt = mmpool_.make<StmtAST>();
+        stmt->setWhileExp($3, $5);
+        $$ = stmt;
+    }
+    | BREAK ';' {
+        auto* stmt = mmpool_.make<StmtAST>();
+        stmt->setBreakStmt();
+        $$ = stmt;
+    }
+    | CONTINUE ';' {
+        auto* stmt = mmpool_.make<StmtAST>();
+        stmt->setContinueStmt();
         $$ = stmt;
     }
     ;

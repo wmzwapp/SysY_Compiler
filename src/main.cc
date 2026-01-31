@@ -6,7 +6,7 @@
 
 #include "ast/BaseAST.hh"
 #include "ast/CompUnitAST.hh"
-#include "ast/ScopeCheck.hh"
+#include "ast/SemanticCheck.hh"
 #include "ast/ConstProp.hh"
 #include "ast/GenIR.hh"
 

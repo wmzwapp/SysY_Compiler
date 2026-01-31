@@ -171,6 +171,12 @@ void ConstPropVisitor::visit(StmtAST* stmt, VCtx* ctx) {
         if (ifExp->hasElse()) {
             ifExp->elseStmt_->accept(this, ctx);
         }
+    } else if (stmt->isWhileExp()) {
+        auto* exp = stmt->getWhileExp();
+        exp->condExp_->accept(this, ctx);
+        if (exp->hasStmt()) {
+            exp->stmt_->accept(this, ctx);
+        }
     }
     cpCtx->set_ret_node(nullptr);
 }

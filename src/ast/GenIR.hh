@@ -7,12 +7,16 @@ namespace IR {
 	class Value;
 }
 struct OperExpAST;
+struct WhileExp;
 
 struct GenIRCtx : public AstVisitorContext {
 	IR::Program*	curProgram_ { nullptr };
 	IR::Function*	curFunc_	{ nullptr };
 	IR::Block*	curBlock_	{ nullptr };
 	IR::Value*	curValue_	{ nullptr };
+
+	IR::Block* whileEntryB_ { nullptr };
+	IR::Block* whileMergeB_ { nullptr };
 
 public:
 	IR::Program* get_current_programIR() { return curProgram_; }
@@ -26,6 +30,11 @@ public:
 
 	IR::Value* get_current_value() { return curValue_; }
 	void set_current_value(IR::Value* ir) { curValue_ = ir; }
+
+	IR::Block* get_while_entry_block() { return whileEntryB_; }
+	IR::Block* get_while_merge_block() { return whileMergeB_; }
+	void set_while_entry_block(IR::Block* b) { whileEntryB_ = b; }
+	void set_while_merge_block(IR::Block* b) { whileMergeB_ = b; }
 };
 
 
@@ -44,4 +53,6 @@ public:
 	void process_return_stmt(StmtAST* stmt, GenIRCtx* ctx);
 	void process_ifelse_stmt(StmtAST* stmt, GenIRCtx* ctx);
 	void process_short_circuit_eval(OperExpAST* expr, GenIRCtx* ctx);
+	void process_while_stmt(WhileExp* stmt, GenIRCtx* ctx);
+	void process_break_continue_stmt(bool isBreak, GenIRCtx* ctx);
 };

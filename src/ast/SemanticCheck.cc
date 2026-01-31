@@ -1,4 +1,4 @@
-#include "ScopeCheck.hh"
+#include "SemanticCheck.hh"
 #include "FuncDefAST.hh"
 #include "BlockAST.hh"
 #include "StmtAST.hh"
@@ -137,6 +137,19 @@ void ScopeCheckerVisitor::visit(StmtAST* stmt, VCtx* ctx) {
         }
         if (ifExp->hasElse()) {
             ifExp->elseStmt_->accept(this, scCtx);
+        }
+    } else if (stmt->isWhileExp()) {
+        auto* exp = stmt->getWhileExp();
+        auto v = scCtx->is_under_while();
+        scCtx->set_is_under_while(true);
+        exp->condExp_->accept(this, ctx);
+        if (exp->hasStmt()) {
+            exp->stmt_->accept(this, ctx);
+        }
+        scCtx->set_is_under_while(v);
+    } else if (stmt->isBreakExp() || stmt->isContinueExp()) {
+        if (!scCtx->is_under_while()) {
+            throw ASTCheckFailed("[Scope check] unexpected expression '%s'.", stmt->repr().c_str());
         }
     }
 }

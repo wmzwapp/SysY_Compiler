@@ -59,6 +59,19 @@ void StmtAST::Dump(std::ostream& os) const {
             os << " else ";
             ifExp->elseStmt_->Dump(os);
         }
+    } else if (isWhileExp()) {
+        auto* wExp = getWhileExp();
+        os << "while (";
+        wExp->condExp_->Dump(os);
+        os << ") { ";
+        if (wExp->hasStmt()) {
+            wExp->stmt_->Dump(os);
+        }
+        os << " }";
+    } else if (isBreakExp()) {
+        os << "break";
+    } else if (isContinueExp()) {
+        os << "continue";
     }
     os << " ;";
 }

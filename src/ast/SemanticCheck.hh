@@ -4,14 +4,19 @@
 
 
 struct ScopeCheckCtx : public AstVisitorContext {
+	bool isUnderWhile_ { false };
 	SymTabAST* curSymTab_ { nullptr };
 	std::vector<BlockAST*>	scopes_;
 	std::unordered_map<std::string, std::vector<SymTabAST*>> namedVarRecord_;
 
+public:
 	SymTabAST* get_cur_symtab() { return curSymTab_; }
 
 	void push_scope(BlockAST* block);
 	void pop_scope();
+
+	void set_is_under_while(bool v) { isUnderWhile_ = v; }
+	bool is_under_while() const noexcept { return isUnderWhile_; }
 
 	bool has_sym(std::string sym, bool glb = true);
 	VarAST* get_sym_var(std::string sym, bool glb = true);

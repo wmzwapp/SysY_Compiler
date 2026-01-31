@@ -52,12 +52,12 @@ private:
 
 
 
-struct lassign {
+struct LAssign {
 	VarAST* lval_ { nullptr };
 	ExpAST*	exp_ { nullptr };
 };
 
-struct retStmt {
+struct RetStmt {
 	ExpAST* retExp_ { nullptr };
 };
 
@@ -69,12 +69,27 @@ struct IFExp {
 	bool hasElse() const noexcept { return elseStmt_ != nullptr; }
 };
 
+struct BCExp {
+	bool isBreak_ { false };
+	bool isContinue_ { false };
+};
+
+struct WhileExp{
+	ExpAST* condExp_ { nullptr };
+	StmtAST* stmt_ { nullptr };
+
+	bool hasStmt() const noexcept { return stmt_ != nullptr; }
+};
+
 /*
 	Stmt			::= "return" [ Exp ] ";"
 						| LVal "=" Exp ";"
 						| Block
 						| [ Exp ] ";"
 						| "if" "(" Exp ")" Stmt ["else" Stmt]
+						| "while" "(" Exp ")" Stmt
+						| "break" ";"
+						| "continue" ";"
 */
 class StmtAST : public BaseAST {
 public:
@@ -91,27 +106,36 @@ public:
 	bool isBlock() const { return exp_.index() == 2; }
 	bool isExp() const { return exp_.index() == 3; }
 	bool isIFExp() const { return exp_.index() == 4; }
+	bool isWhileExp() const { return exp_.index() == 5; }
+	bool isBreakExp() const { return exp_.index() == 6 && std::get<6>(exp_).isBreak_; }
+	bool isContinueExp() const { return exp_.index() == 6 && std::get<6>(exp_).isContinue_; }
 
 	ExpAST* getRetExp() { return std::get<1>(exp_).retExp_; }
 	const ExpAST* getRetExp() const { return std::get<1>(exp_).retExp_; }
-	lassign* getAssignExp() { return &std::get<0>(exp_); }
-	const lassign* getAssignExp() const { return &std::get<0>(exp_); }
+	LAssign* getAssignExp() { return &std::get<0>(exp_); }
+	const LAssign* getAssignExp() const { return &std::get<0>(exp_); }
 	BlockAST* getBlock() { return std::get<2>(exp_); }
 	const BlockAST* getBlock() const { return std::get<2>(exp_); }
 	ExpAST* getExp() { return std::get<3>(exp_); }
 	const ExpAST* getExp() const { return std::get<3>(exp_); }
 	IFExp* getIFExp() { return &std::get<4>(exp_); }
 	const IFExp* getIFExp() const { return &std::get<4>(exp_); }
+	WhileExp* getWhileExp() { return &std::get<5>(exp_); }
+	const WhileExp* getWhileExp() const { return &std::get<5>(exp_); }
 
-	void setAssignExp(BaseAST* lval, BaseAST* exp) { exp_ = lassign {(VarAST*)lval, (ExpAST*)exp}; }
-	void setRetExp(BaseAST* exp) { exp_ = retStmt {(ExpAST*)exp}; }
+	void setAssignExp(BaseAST* lval, BaseAST* exp) { exp_ = LAssign {(VarAST*)lval, (ExpAST*)exp}; }
+	void setRetExp(BaseAST* exp) { exp_ = RetStmt {(ExpAST*)exp}; }
 	void setBlock(BaseAST* block) { exp_ = (BlockAST*)block; }
 	void setExp(BaseAST* exp) { exp_ = (ExpAST*)exp; }
 	void setIFExp(BaseAST* condExp, BaseAST* ifStmt, BaseAST* elseStmt = nullptr)
 		{ exp_ = IFExp { (ExpAST*)condExp, (StmtAST*)ifStmt, (StmtAST*)elseStmt }; }
+	void setWhileExp(BaseAST* condExp, BaseAST* stmt)
+		{ exp_ = WhileExp { (ExpAST*)condExp, (StmtAST*)stmt }; }
+	void setBreakStmt() { exp_ = BCExp { true, false }; }
+	void setContinueStmt() { exp_ = BCExp { false, true }; }
 
 private:
-	std::variant<lassign, retStmt, BlockAST*, ExpAST*, IFExp>	exp_ { lassign() };
+	std::variant<LAssign, RetStmt, BlockAST*, ExpAST*, IFExp, WhileExp, BCExp>	exp_ { LAssign() };
 };
 
 
